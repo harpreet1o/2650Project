@@ -58,6 +58,14 @@
     </style>
 </head>
 <body>
+    <h1><%= title %></h1>
+  <% if (user) { %>
+    <p>Hello <%= user.name %></p>
+    <a href="/logout">Logout</a>
+  <% } else { %>
+    <p>Hello Anonymous</p>
+    <a href="/login/federated/google">Login</a>
+  <% } %>
     <div class="main">
         <div class="board"></div>
     </div>
