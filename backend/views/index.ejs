@@ -3,12 +3,63 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js" integrity="sha512-xRllwz2gdZciIB+AkEbeq+gVhX8VB8XsfqeFbUh+SzHlN96dEduwtTuVuc2u9EROlmW9+yhRlxjif66ORpsgVA==" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
     <script defer src="/socket.io/socket.io.js"></script>
-    <script src="/js/chessGame.js" defer></script>
+    <script defer src="/js/chessGame.js"></script>
     <title>Document</title>
+    <style>
+        .main {
+            width: 100%;
+            height: 100vh;
+            background-color: black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .board {
+            width: 400px;
+            height: 400px;
+            background-color: purple;
+        }
+        .piece.white {
+            color: white;
+            filter: drop-shadow(0 0 2px rgba(0, 0, 0, 1));
+        }
+        .piece.black {
+            color: black;
+        }
+        .flipped {
+            transform: rotate(180deg);
+        }
+        .square {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .square.light {
+            background-color: #f0d9b5;
+        }
+        .square.dark {
+            background-color: #b58863;
+        }
+        .piece {
+            font-size: 36px;
+            cursor: pointer;
+        }
+        .piece.draggable {
+            cursor: grab;
+        }
+        .dragging {
+            opacity: 0.5;
+        }
+        .flipped .piece {
+            transform: rotate(180deg);
+        }
+    </style>
 </head>
 <body>
-    <p>hello</p>
+    <div class="main">
+        <div class="board"></div>
+    </div>
 </body>
-
 </html>
