@@ -108,8 +108,8 @@ io.on("connection", (socket) => {
         if (socket.id === players.black) {
             delete players.black;
         }
-
-        console.log("disconnected");
+        
+        // console.log("disconnected");
     })
 })
 
