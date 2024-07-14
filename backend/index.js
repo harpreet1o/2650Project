@@ -69,7 +69,7 @@ io.on("connection",(socket)=>{
             delete players.black;
         }
         
-        console.log("disconnected");
+        // console.log("disconnected");
     })
 })
 
