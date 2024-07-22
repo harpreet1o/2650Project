@@ -19,6 +19,7 @@ import logger from "morgan";
 import indexRouter from "./routes/index.js";
 import authRouter from "./routes/auth.js";
 import connectDB from "./db.js";
+import isAuthenticated from "./middleware/auth.js";
 
 // These lines are needed to properly handle __dirname with ES6 modules
 const __filename = fileURLToPath(import.meta.url);
@@ -79,7 +80,7 @@ app.use(passport.authenticate('session'));
 // router for authentication
 app.use("/", authRouter)
 
-app.get("/", (req, res) => {
+app.get("/", isAuthenticated, (req, res) => {
     const user = req.user
     console.log(user)
     res.render("index", { title: "Chess!", user: user });
