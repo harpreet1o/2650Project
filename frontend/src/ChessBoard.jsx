@@ -1,20 +1,7 @@
-import React, { useContext } from 'react';
-import axios from 'axios';
-import { UserContext } from './context/UserContext';
+import React from 'react';
 
 export default function ChessBoard({ board }) {
-  const { user, setUser } = useContext(UserContext);
-
-  const logout = async () => {
-    try {
-      await axios.get('http://localhost:3000/logout', { withCredentials: true });
-      setUser(null);
-      window.location.href = 'http://localhost:5173';
-    } catch (err) {
-      console.error(err.response.data);
-    }
-  };
-
+ 
 
   console.log(board);
 
@@ -41,15 +28,7 @@ export default function ChessBoard({ board }) {
 
   return (
     <div>
-       {user ? (
-        <div>
-          <p>Welcome, {user.name}</p>
-          {user.picture && <img src={user.picture} alt={user.name} />}
-          <button onClick={logout}>Logout</button>
-        </div>
-      ) : (
-        <p>Guest User</p>
-      )}
+       
       <div className="grid grid-cols-8 grid-rows-8 gap-0 border-2 border-gray-800 w-80 h-80">
         {board.map((row, rowIndex) =>
           row.map((square, squareIndex) => {
