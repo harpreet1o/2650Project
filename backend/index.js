@@ -1,5 +1,4 @@
 import "dotenv/config.js";
-
 import express from "express";
 import { Server } from "socket.io";
 import http from "http";
@@ -7,14 +6,13 @@ import cors from "cors";
 import { Chess } from "chess.js";
 import path from "path";
 import { fileURLToPath } from "url";
-import { log } from "console";
 import cookieParser from "cookie-parser";
 import session from 'express-session';
 import passport from 'passport';
 import pluralize from 'pluralize';
 import RedisStore from "connect-redis"
 import redis from 'redis';
-
+import { v4 as uuidV4 } from 'uuid';
 import logger from "morgan";
 import indexRouter from "./routes/index.js";
 import authRouter from "./routes/auth.js";
@@ -30,7 +28,11 @@ const app = express();
 connectDB()
 
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+    cors: '*', // allow connection from any origin
+});
+
+const rooms = new Map();
 
 const chess = new Chess();
 
@@ -84,53 +86,98 @@ app.get("/", (req, res) => {
     console.log(user)
     res.render("index", { title: "Chess!", user: user });
 })
-io.on("connection", (socket) => {
-    console.log("connected")
-    if (!players.white) {
-        players.white = socket.id;
-        socket.emit("playerRole", "w");
-    }
-    else if (!players.black) {
-        players.black = socket.id;
-        socket.emit("playerRole", "b");
-    }
-    else {
-        socket.emit("spectatorRole");
-    }
-    socket.on("move", (move) => {
-        try {
-            if (chess.turn() === 'w' && socket.id !== players.white) return;
-            if (chess.turn() === 'b' && socket.id !== players.black) return;
 
-            const result = chess.move(move);
-            if (result) {
-                currentPlayer = chess.turn();
-                io.emit("move", move);
-                io.emit("boardState", chess.fen())
+// io.connection
+io.on('connection', (socket) => {
+    // socket refers to the client socket that just got connected.
+    // each socket is assigned an id
+    console.log(socket.id, 'connected');
+
+    // listen to username event
+    socket.on('username', (username) => {
+        console.log('username:', username);
+        socket.data.username = username;
+    });
+
+    // createRoom
+    socket.on('createRoom', async (callback) => { // callback here refers to the callback function from the client passed as data
+        const roomId = uuidV4(); // <- 1 create a new uuid
+        await socket.join(roomId); // <- 2 make creating user join the room
+
+        // set roomId as a key and roomData including players as value in the map
+        rooms.set(roomId, { // <- 3
+            roomId,
+            players: [{ id: socket.id, username: socket.data?.username }]
+        });
+        // returns Map(1){'2b5b51a9-707b-42d6-9da8-dc19f863c0d0' => [{id: 'socketid', username: 'username1'}]}
+
+        callback(roomId); // <- 4 respond with roomId to client by calling the callback function from the client
+    });
+
+    // get available rooms
+    socket.on('getAvailableRooms', (callback) => {
+        const availableRooms = Array.from(rooms.values()).filter(room => room.players.length < 2);
+        callback(availableRooms.map(room => room.roomId));
+    });
+
+    // joining a room
+    socket.on('joinRoom', async (args, callback) => {
+        // check if room exists and has a player waiting
+        const room = rooms.get(args.roomId);
+        let error, message;
+
+        if (!room) { // if room does not exist
+            error = true;
+            message = 'room does not exist';
+        } else if (room.players.length <= 0) { // if room is empty set appropriate message
+            error = true;
+            message = 'room is empty';
+        } else if (room.players.length >= 2) { // if room is full
+            error = true;
+            message = 'room is full'; // set message to 'room is full'
+        }
+
+        if (error) {
+            // if there's an error, check if the client passed a callback,
+            // call the callback (if it exists) with an error object and exit or 
+            // just exit if the callback is not given
+
+            if (callback) { // if user passed a callback, call it with an error payload
+                callback({
+                    error,
+                    message
+                });
             }
-            else {
-                console.log("Invalid move:", move);
-                socket.emit("InvalidMove", move);
-            }
-        }
-        catch (err) {
-            console.log(err);
-            socket.emit("Invalid move:", move);
+
+            return; // exit
         }
 
+        await socket.join(args.roomId); // make the joining client join the room
 
-    })
-    socket.on("disconnect", () => {
-        if (socket.id === players.white) {
-            delete players.white;
-        }
-        if (socket.id === players.black) {
-            delete players.black;
-        }
-        
-        // console.log("disconnected");
-    })
-})
+        // add the joining user's data to the list of players in the room
+        const roomUpdate = {
+            ...room,
+            players: [
+                ...room.players,
+                { id: socket.id, username: socket.data?.username },
+            ],
+        };
+
+        rooms.set(args.roomId, roomUpdate);
+
+        callback(roomUpdate); // respond to the client with the room details.
+
+        // emit an 'opponentJoined' event to the room to tell the other player that an opponent has joined
+        socket.to(args.roomId).emit('opponentJoined', roomUpdate);
+    });
+
+    //moving the pieces
+    socket.on('move', (data) => {
+        // emit to all sockets in the room except the emitting socket.
+        socket.to(data.room).emit('move', data.move);
+      });
+
+});
 
 server.listen(3000, function () {
     console.log("listening on port")
