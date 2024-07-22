@@ -4,8 +4,14 @@ import mongoose from 'mongoose'
 
 const mongoURI = process.env.MONGOURI; // Replace with your MongoDB URI
 
-mongoose.connect(mongoURI)
-  .then(() => console.log('MongoDB Connected'))
-  .catch(err => console.error('MongoDB connection error:', err));
+const connectDB = async () => {
+  try {
+    await mongoose.connect(mongoURI)
+    console.log('MongoDB Connected')
+  }
+  catch (err) {
+    console.error('MongoDB connection error:', err);
+  }
+};
 
-export default mongoose;
+export default connectDB;

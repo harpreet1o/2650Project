@@ -3,6 +3,7 @@ import "dotenv/config.js";
 import express from "express";
 import { Server } from "socket.io";
 import http from "http";
+import cors from "cors";
 import { Chess } from "chess.js";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -17,13 +18,16 @@ import redis from 'redis';
 import logger from "morgan";
 import indexRouter from "./routes/index.js";
 import authRouter from "./routes/auth.js";
-import "./db.js";
+import connectDB from "./db.js";
 
 // These lines are needed to properly handle __dirname with ES6 modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+
+// connect to Database
+connectDB()
 
 const server = http.createServer(app);
 const io = new Server(server);
@@ -36,16 +40,31 @@ app.set("view engine", "ejs");
 
 app.locals.pluralize = pluralize;
 
-
-app.use(logger("dev"));
+// Middlewares
+app.use(cors({
+    origin: 'http://localhost:5173',
+    credentials: true
+}))
 app.use(express.json());
+app.use(logger("dev"));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 
+// redis setup
+let redisClient;
+
+(async () => {
+  redisClient = redis.createClient();
+
+  redisClient.on("error", (error) => console.error(`Error : ${error}`));
+
+  await redisClient.connect();
+})();
+
 // Use the session middleware
 app.use(session({
-    // store: new RedisStore({ client: client }),
+    store: new RedisStore({ client: redisClient }),
     secret: 'keyboard cat',
     resave: false, // don't save session if unmodified
     saveUninitialized: false, // don't create session until something stored
