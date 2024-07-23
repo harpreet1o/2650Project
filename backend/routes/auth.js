@@ -1,104 +1,101 @@
 import express from 'express';
 import passport from 'passport';
 import GoogleStrategy from 'passport-google-oidc';
-import User from '../models/User.js'; 
+import LocalStrategy from 'passport-local';
+import User from '../models/User.js';
 
 // Configure the Google strategy for use by Passport.
-//
-// OAuth 2.0-based strategies require a `verify` function which receives the
-// credential (`accessToken`) for accessing the Facebook API on the user's
-// behalf, along with the user's profile.  The function must invoke `cb`
-// with a user object, which will be set at `req.user` in route handlers after
-// authentication.
+
 passport.use(new GoogleStrategy({
     clientID: process.env['GOOGLE_CLIENT_ID'],
     clientSecret: process.env['GOOGLE_CLIENT_SECRET'],
     callbackURL: '/oauth2/redirect/google',
-    scope: ['profile']
+    scope: ['profile', 'email']
 }, async function verify(issuer, profile, cb) {
 
+
+    // Check if user exists in MongoDB
+    console.log("profile: ", profile)
+    const newUser = {
+        googleId: profile.id,
+        email: profile.emails[0].value,
+        name: profile.displayName
+    };
+
     try {
-        // Check if user exists in MongoDB
-        console.log("profile: ", profile)
         let user = await User.findOne({ googleId: profile.id });
-        console.log("user: ", user)
 
-        if (!user) {
-            // Create new user if not found
-            user = new User({
-                googleId: profile.id,
-                username: profile.name.givenName, // Example: Using email as username
-                name: profile.displayName
-            });
+        if (user) {
+            return cb(null, user);
+        } else {
+            user = new User(newUser);
             await user.save();
+            return cb(null, user);
         }
-        console.log(user)
-
-        return cb(null, user);
     } catch (err) {
-        return cb(err);
+        console.error(err);
+        return cb(err, null);
     }
 }));
 
+// configure the local strategy for passport for user login
+passport.use(
+    new LocalStrategy(
+        { usernameField: 'email' },
+        async (email, password, done) => {
+            try {
+                let user = await User.findOne({ email });
+
+                if (!user) {
+                    return done(null, false, { message: 'Invalid credentials' });
+                }
+
+                const isMatch = await user.matchPassword(password);
+
+                if (!isMatch) {
+                    return done(null, false, { message: 'Invalid credentials' });
+                }
+
+                return done(null, user);
+            } catch (err) {
+                console.error(err);
+                return done(err, null);
+            }
+        }
+    )
+);
+
 // Configure Passport authenticated session persistence.
-//
-// In order to restore authentication state across HTTP requests, Passport needs
-// to serialize users into and deserialize users out of the session.  In a
-// production-quality application, this would typically be as simple as
-// supplying the user ID when serializing, and querying the user record by ID
-// from the database when deserializing.  However, due to the fact that this
-// example does not have a database, the complete Facebook profile is serialized
-// and deserialized.
+
 passport.serializeUser(function (user, cb) {
     process.nextTick(function () {
-        cb(null, { id: user.id, username: user.username, name: user.name });
+        cb(null, user.id);
     });
 });
 
-passport.deserializeUser(function (user, cb) {
-    process.nextTick(function () {
-        return cb(null, user);
-    });
+passport.deserializeUser(async function (id, cb) {
+    try {
+        const user = await User.findById(id);
+        cb(null, user);
+    } catch (err) {
+        cb(err, null);
+    }
 });
 
 
 var router = express.Router();
 
-/* GET /login
- *
- * This route prompts the user to log in.
- *
- * The 'login' view renders an HTML page, which contain a button prompting the
- * user to sign in with Google.  When the user clicks this button, a request
- * will be sent to the `GET /login/federated/accounts.google.com` route.
- */
-router.get('/login', function (req, res, next) {
-    res.render('login');
-});
 
 /* GET /login/federated/accounts.google.com
  *
  * This route redirects the user to Google, where they will authenticate.
- *
- * Signing in with Google is implemented using OAuth 2.0.  This route initiates
- * an OAuth 2.0 flow by redirecting the user to Google's identity server at
- * 'https://accounts.google.com'.  Once there, Google will authenticate the user
- * and obtain their consent to release identity information to this app.
- *
- * Once Google has completed their interaction with the user, the user will be
  * redirected back to the app at `GET /oauth2/redirect/accounts.google.com`.
  */
 router.get('/login/federated/google', passport.authenticate('google'));
 
-/*
-    This route completes the authentication sequence when Google redirects the
-    user back to the application.  When a new user signs in, a user account is
-    automatically created and their Google account is linked.  When an existing
-    user returns, they are signed in to their linked account.
-*/
 router.get('/oauth2/redirect/google', passport.authenticate('google', {
-    successReturnToOrRedirect: '/',
-    failureRedirect: '/'
+    successReturnToOrRedirect: 'http://localhost:5173/',
+    failureRedirect: 'http://localhost:5173/'
 }));
 
 /*
@@ -107,8 +104,58 @@ router.get('/oauth2/redirect/google', passport.authenticate('google', {
 router.get('/logout', function (req, res, next) {
     req.logout(function (err) {
         if (err) { return next(err); }
-        res.redirect('/');
+        res.redirect('/current_user')
     });
+});
+
+// Register route
+router.post('/register', async (req, res) => {
+    const { email, name, password } = req.body;
+    console.log(email)
+    try {
+        let user = await User.findOne({ email });
+
+        if (user) {
+            return res.status(400).json({ msg: 'User already exists' });
+        }
+
+        user = new User({ email, name, password });
+        await user.save();
+
+        req.login(user, (err) => {
+            if (err) {
+                return res.status(500).send(err);
+            }
+            return res.status(201).json(user);
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Server error');
+    }
+});
+
+// Login route
+router.post('/login', (req, res, next) => {
+    passport.authenticate('local', (err, user, info) => {
+        if (err) {
+            return next(err);
+        }
+        if (!user) {
+            return res.status(400).json({ msg: info.message });
+        }
+        req.login(user, (err) => {
+            if (err) {
+                return next(err);
+            }
+            return res.json(user);
+        });
+    })(req, res, next);
+});
+
+
+// Route to get current user
+router.get('/current_user', (req, res) => {
+    res.send(req.user);
 });
 
 export default router
