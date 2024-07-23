@@ -43,15 +43,14 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 
-// Use the session middleware
 app.use(session({
-    // store: new RedisStore({ client: client }),
+
     secret: 'keyboard cat',
-    resave: false, // don't save session if unmodified
-    saveUninitialized: false, // don't create session until something stored
+    resave: false, 
+    saveUninitialized: false, 
     cookie: {
-        secure: process.env.NODE_ENV === 'production', // Set to true if using HTTPS
-        maxAge: 1000 * 60 * 60 * 24 // Session expires after 1 day
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 1000 * 60 * 60 * 24 
     }
 }));
 
