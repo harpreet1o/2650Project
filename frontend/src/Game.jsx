@@ -20,7 +20,22 @@ function Game({ players, room, orientation, cleanup }) {
   const [fen, setFen] = useState(chess.fen()); // <- 2
   const [over, setOver] = useState("");
 
+  // if player disconnected
+  useEffect(() => {
+    socket.on('playerDisconnected', (player) => {
+      setOver(`${player.username} has disconnected`); // set game over
+    });
+  }, []);
 
+  // on closing room
+  useEffect(() => {
+    socket.on('closeRoom', ({ roomId }) => {
+      if (roomId === room) {
+        cleanup();
+      }
+    });
+  }, [room, cleanup]);
+  
 
   // move function
   const makeAMove = useCallback(
@@ -124,7 +139,8 @@ function Game({ players, room, orientation, cleanup }) {
         title={over}
         contentText={over}
         handleContinue={() => {
-          setOver("");
+          socket.emit("closeRoom", { roomId: room });
+          cleanup();
         }}
       />
     </Stack>
