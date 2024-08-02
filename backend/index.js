@@ -1,137 +1,135 @@
-import "dotenv/config.js";
-
 import express from "express";
 import { Server } from "socket.io";
-import http from "http";
+import { createServer } from "http";
 import cors from "cors";
-import { Chess } from "chess.js";
-import path from "path";
-import { fileURLToPath } from "url";
-import { log } from "console";
+import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
-import session from 'express-session';
-import passport from 'passport';
-import pluralize from 'pluralize';
-import RedisStore from "connect-redis"
-import redis from 'redis';
 
-import logger from "morgan";
-import indexRouter from "./routes/index.js";
-import authRouter from "./routes/auth.js";
-import connectDB from "./db.js";
-import isAuthenticated from "./middleware/auth.js";
-
-// These lines are needed to properly handle __dirname with ES6 modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const secretKeyJWT = "asdasdsadasdasdasdsa";
+const port = 3000;
 
 const app = express();
+const server = createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+});
 
-// connect to Database
-connectDB()
+// Initialize rooms as an array of objects with properties for each player
+const rooms = [];
 
-const server = http.createServer(app);
-const io = new Server(server);
+// Map to keep track of user IDs and their assigned room and role
+const userRoomMap = new Map();
 
-const chess = new Chess();
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"],
+    credentials: true,
+  })
+);
 
-let players = {};
-let currentPlayer;
-app.set("view engine", "ejs");
+app.get("/", (req, res) => {
+  res.send("Hello World!");
+});
 
-app.locals.pluralize = pluralize;
+app.get("/login", (req, res) => {
+  const token = jwt.sign({ _id: "asdas" }, secretKeyJWT);
 
-// Middlewares
-app.use(cors({
-    origin: 'http://localhost:5173',
-    credentials: true
-}))
-app.use(express.json());
-app.use(logger("dev"));
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
-app.use(express.static(path.join(__dirname, "public")));
+  res
+    .cookie("token", token, { httpOnly: true, secure: true, sameSite: "none" })
+    .json({
+      message: "Login Success",
+    });
+});
 
-// redis setup
-let redisClient;
+// Function to get or create a room for the user and emit their assigned role
+const assignUserToRoom = (socket, userId) => {
+  if (userRoomMap.has(userId)) {
+    // If user already has a room, reassign them to it
+    const { roomIndex, role } = userRoomMap.get(userId);
+    socket.emit("roleAssigned", role);
+    return roomIndex;
+  }
 
-(async () => {
-  redisClient = redis.createClient();
-
-  redisClient.on("error", (error) => console.error(`Error : ${error}`));
-
-  await redisClient.connect();
-})();
-
-app.use(session({
-    store: new RedisStore({ client: redisClient }),
-    secret: 'keyboard cat',
-    resave: false, 
-    saveUninitialized: false, 
-    cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 1000 * 60 * 60 * 24 
+  // Assign to a new room if user doesn't have an existing assignment
+  for (let i = 0; i < rooms.length; i++) {
+    if (!rooms[i].white) {
+      rooms[i].white = userId;
+      userRoomMap.set(userId, { roomIndex: i, role: "white" });
+      socket.emit("roleAssigned", "white");
+      return i;
+    } else if (!rooms[i].black) {
+      rooms[i].black = userId;
+      userRoomMap.set(userId, { roomIndex: i, role: "black" });
+      socket.emit("roleAssigned", "black");
+      return i;
     }
-}));
+  }
+  // If all rooms are full, create a new room
+  const newRoomIndex = rooms.length;
+  rooms.push({ white: userId, black: null });
+  userRoomMap.set(userId, { roomIndex: newRoomIndex, role: "white" });
+  socket.emit("roleAssigned", "white");
+  return newRoomIndex;
+};
 
-app.use(passport.authenticate('session'));
+// Middleware to check authentication
+io.use((socket, next) => {
+  cookieParser()(socket.request, socket.request.res || {}, (err) => {
+    if (err) return next(err);
 
-// router for authentication
-app.use("/", authRouter)
+    const token = socket.request.cookies.token;
+    if (!token) return next(new Error("Authentication Error"));
 
-app.get("/", isAuthenticated, (req, res) => {
-    const user = req.user
-    console.log(user)
-    res.render("index", { title: "Chess!", user: user });
-})
+    try {
+      const decoded = jwt.verify(token, secretKeyJWT);
+      socket.decoded = decoded; // Attach decoded token payload to socket object
+
+      const roomIndex = assignUserToRoom(socket, decoded._id); // Assign room and role to user
+
+      if (roomIndex !== undefined) {
+        socket.join(roomIndex.toString());
+        console.log(`User joined room ${roomIndex}`);
+      }
+
+      next();
+    } catch (error) {
+      return next(new Error("Token Verification Failed"));
+    }
+  });
+});
+
 io.on("connection", (socket) => {
-    console.log("connected")
-    if (!players.white) {
-        players.white = socket.id;
-        socket.emit("playerRole", "w");
-    }
-    else if (!players.black) {
-        players.black = socket.id;
-        socket.emit("playerRole", "b");
-    }
-    else {
-        socket.emit("spectatorRole");
-    }
-    socket.on("move", (move) => {
-        try {
-            if (chess.turn() === 'w' && socket.id !== players.white) return;
-            if (chess.turn() === 'b' && socket.id !== players.black) return;
+  console.log("connected");
+  console.log(socket.id);
+//   socket.on("move")
 
-            const result = chess.move(move);
-            if (result) {
-                currentPlayer = chess.turn();
-                io.emit("move", move);
-                io.emit("boardState", chess.fen())
-            }
-            else {
-                console.log("Invalid move:", move);
-                socket.emit("InvalidMove", move);
-            }
-        }
-        catch (err) {
-            console.log(err);
-            socket.emit("Invalid move:", move);
-        }
+  // Handle disconnection
+  socket.on("disconnect", () => {
+    const userId = socket.decoded._id;
+    rooms.forEach((room, index) => {
+      if (room.white === userId) {
+        room.white = null;
+        console.log(`User ${userId} left room ${index} (was white)`);
+      } else if (room.black === userId) {
+        room.black = null;
+        console.log(`User ${userId} left room ${index} (was black)`);
+      }
 
+      // Optionally remove empty rooms
+      if (!room.white && !room.black) {
+        rooms.splice(index, 1);
+        console.log(`Room ${index} removed because it is empty`);
+      }
+    });
+    userRoomMap.delete(userId); // Remove user from the map on disconnect
+  });
+});
 
-    })
-    socket.on("disconnect", () => {
-        if (socket.id === players.white) {
-            delete players.white;
-        }
-        if (socket.id === players.black) {
-            delete players.black;
-        }
-        
-        // console.log("disconnected");
-    })
-})
-
-server.listen(3000, function () {
-    console.log("listening on port")
-})
+server.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});
