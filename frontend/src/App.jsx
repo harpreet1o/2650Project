@@ -4,6 +4,7 @@ import Login from './components/Login';
 import Register from './components/Register';
 import ChessBoard from './ChessBoard';
 import Navbar from './components/Navbar';
+import Home from './Home';
 
 
 export default function App() {
@@ -13,7 +14,8 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/" element={<ChessBoard  />} />
+        <Route path="/" element={<Home/>} />
+        <Route path="/chessboard" element={<ChessBoard />} />
       </Routes>
     </Router>
   )

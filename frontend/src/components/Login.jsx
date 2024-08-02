@@ -1,3 +1,4 @@
+// components/Login.js
 import React, { useState, useContext } from 'react';
 import axios from 'axios';
 import { UserContext } from '../context/UserContext';
@@ -16,7 +17,7 @@ const Login = () => {
         setError('');
         try {
             const res = await axios.post('http://localhost:3000/login', formData, { withCredentials: true });
-            setUser(res.data);
+            setUser(res.data.user);
             window.location.href = 'http://localhost:5173/';
         } catch (err) {
             if (err.response && err.response.data) {
