@@ -6,6 +6,9 @@ import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
 import { Chess } from "chess.js";
 import { createClient } from "redis";
+import sql from 'mssql';
+import config from './config.js';
+import sqlite3 from 'sqlite3';
 
 const secretKeyJWT = "asdasdsadasdasdasdsa";
 const port = 3000;
@@ -29,6 +32,9 @@ redisClient.on("error", (error) => console.error(`Error: ${error}`));
   await redisClient.connect();
   console.log('Redis client connected successfully.');
 })();
+
+
+
 
 app.use(
   cors({

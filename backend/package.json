@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@azure/identity": "^4.4.1",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.20.2",
     "chess.js": "^1.0.0-beta.8",
@@ -22,12 +23,14 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.5.1",
     "morgan": "^1.10.0",
+    "mssql": "^11.0.1",
     "passport": "^0.7.0",
     "passport-google-oidc": "^0.1.0",
     "passport-local": "^1.0.0",
     "pluralize": "^8.0.0",
     "redis": "^4.7.0",
-    "socket.io": "^4.7.5"
+    "socket.io": "^4.7.5",
+    "sqlite3": "^5.1.7"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"
