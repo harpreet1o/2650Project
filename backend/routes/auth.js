@@ -3,7 +3,8 @@ import express from 'express';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import jwt from 'jsonwebtoken';
-import { createUser, findUserById } from '../models/User.js';
+import { v4 as uuidv4 } from 'uuid';
+import { createUser, findUserByEmail, findUserById,matchPassword } from '../models/User.js';
 
 const secretKeyJWT = "asdasdsadasdasdasdsa";
 
@@ -49,12 +50,60 @@ passport.deserializeUser((id, cb) => {
 const router = express.Router();
 
 // Utility function to generate JWT
-const generateToken = (user) => {
-  return jwt.sign({ id: user.id }, secretKeyJWT, { expiresIn: '24h' });
+const generateToken = (userId) => {
+  return jwt.sign({ id: userId }, secretKeyJWT, { expiresIn: '24h' });
 };
 
+// User registration route
+router.post('/register', (req, res) => {
+  const { email, name, password } = req.body;
+
+  findUserByEmail(email, (err, existingUser) => {
+    if (err) {
+      return res.status(500).json({ message: 'Internal server error.' });
+    }
+    if (existingUser) {
+      return res.status(400).json({ message: 'User already exists.' });
+    }
+
+    const newUser = {
+      id: uuidv4(),
+      email,
+      name,
+      password
+    };
+
+    createUser(newUser, (err, user) => {
+      if (err) {
+        return res.status(500).json({ message: 'Internal server error.' });
+      }
+      const token = generateToken(user.id);
+      res.cookie('token', token, { httpOnly: true, secure: true, sameSite: "none" });
+      res.status(201).json({ user, token });
+    });
+  });
+});
+
+// User login route
+router.post('/login', (req, res) => {
+  const { email, password } = req.body;
+
+  findUserByEmail(email, (err, user) => {
+    if (err) {
+      return res.status(500).json({ message: 'Internal server error.' });
+    }
+    if (!user || !matchPassword(password, user.password)) {
+      return res.status(401).json({ message: 'Invalid email or password.' });
+    }
+
+    const token = generateToken(user.id);
+    res.cookie('token', token, { httpOnly: true, secure: true, sameSite: "none" });
+    res.json({ user, token });
+  });
+});
+
 router.get('/login/federated/google', (req, res, next) => {
-  if (req.cookies.token) {
+  if (req.cookies && req.cookies.token) {
     const token = req.cookies.token;
     jwt.verify(token, secretKeyJWT, (err, decoded) => {
       if (err) {
@@ -65,7 +114,7 @@ router.get('/login/federated/google', (req, res, next) => {
           return res.status(500).json({ message: 'Internal server error.' });
         }
         if (user) {
-            res.redirect(`http://localhost:5173`);
+          res.redirect(`http://localhost:5173`);
         }
         return next();
       });
@@ -79,7 +128,7 @@ router.get('/oauth2/redirect/google', passport.authenticate('google', {
   session: false,
   failureRedirect: 'http://localhost:5173/login'
 }), (req, res) => {
-  const token = generateToken(req.user);
+  const token = generateToken(req.user.id);
   res.cookie('token', token, { httpOnly: true, secure: true, sameSite: "none" });
   res.redirect(`http://localhost:5173`);
 });

@@ -37,5 +37,11 @@ const createUser = ({ id, email, name, password }, cb) => {
     }
   );
 };
+const findUserByEmail = (email, cb) => {
+  db.get('SELECT id, name, email, password FROM user WHERE email = ?', [email], (err, row) => {
+    cb(err, row);
+  });
+};
+const matchPassword = (password, hash) => bcrypt.compareSync(password, hash);
 
-export { db, findUserById, createUser };
+export { db, findUserById, createUser,findUserByEmail,matchPassword };
