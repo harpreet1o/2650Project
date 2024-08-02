@@ -22,6 +22,7 @@ const Navbar = () => {
                 <div className="flex items-center space-x-4 text-white">
                     <span className="text-2xl font-bold">Chess</span>
                     <Link to="/" className="text-xl">Home</Link>
+                    <Link to="/profile" className="text-xl">Profile</Link>
                 </div>
                 <div className="flex items-center space-x-4">
                     {user ? (

@@ -14,9 +14,10 @@ import RedisStore from "connect-redis"
 import redis from 'redis';
 import { v4 as uuidV4 } from 'uuid';
 import logger from "morgan";
-import indexRouter from "./routes/index.js";
+import userRouter from "./routes/user.js";
 import authRouter from "./routes/auth.js";
 import connectDB from "./db.js";
+import onGameCompleted from "./controllers/game.js";
 
 // These lines are needed to properly handle __dirname with ES6 modules
 const __filename = fileURLToPath(import.meta.url);
@@ -80,6 +81,8 @@ app.use(passport.authenticate('session'));
 
 // router for authentication
 app.use("/", authRouter)
+app.use("/user", userRouter)
+
 
 app.get("/", (req, res) => {
     const user = req.user
@@ -176,6 +179,11 @@ io.on('connection', (socket) => {
         // emit to all sockets in the room except the emitting socket.
         socket.to(data.room).emit('move', data.move);
     });
+
+    socket.on('gameCompleted', ({ winnerId, loserId }) => {
+        onGameCompleted(winnerId, loserId);
+    });
+
 
     // disconnect
     socket.on("disconnect", () => {

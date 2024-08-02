@@ -3,6 +3,7 @@ import Login from './components/Login';
 import Register from './components/Register';
 import Navbar from './components/Navbar';
 import Home from "./Home";
+import ProfilePage from './pages/ProfilePage';
 
 
 export default function App() {
@@ -14,6 +15,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/" element={<Home />} />
+        <Route path="/profile" element={<ProfilePage />} />
       </Routes>
     </Router>
   )

@@ -3,6 +3,14 @@
 import mongoose from 'mongoose'
 import bcrypt from 'bcryptjs'
 
+
+// Schema to store game history
+const gameHistorySchema = new mongoose.Schema({
+  gameId: { type: String, ref: 'Game' },
+  result: { type: String, enum: ['win', 'loss', 'draw'] },
+  timestamp: { type: Date, default: Date.now }
+});
+
 const UserSchema = new mongoose.Schema({
   googleId: {
     type: String,
@@ -24,7 +32,16 @@ const UserSchema = new mongoose.Schema({
   date: {
     type: Date,
     default: Date.now
-  }
+  },
+  gamesPlayed: {
+    type: Number,
+    default: 0
+  },
+  gamesWon: {
+    type: Number,
+    default: 0
+  },
+  games: [gameHistorySchema]
 });
 
 UserSchema.pre('save', async function (next) {
@@ -41,5 +58,5 @@ UserSchema.methods.matchPassword = async function (enteredPassword) {
 };
 
 const User = mongoose.model('User', UserSchema);
-  
+
 export default User;

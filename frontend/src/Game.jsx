@@ -35,7 +35,7 @@ function Game({ players, room, orientation, cleanup }) {
       }
     });
   }, [room, cleanup]);
-  
+
 
   // move function
   const makeAMove = useCallback(
@@ -45,18 +45,27 @@ function Game({ players, room, orientation, cleanup }) {
         setFen(chess.fen()); // update fen state to trigger a re-render
 
         console.log("over, checkmate", chess.isGameOver(), chess.isCheckmate());
-
         if (chess.isGameOver()) { // check if move led to "game over"
+          let winnerId, loserId;
           if (chess.isCheckmate()) { // if reason for game over is a checkmate
             // Set message to checkmate. 
             setOver(
               `Checkmate! ${chess.turn() === "w" ? "black" : "white"} wins!`
             );
-            // The winner is determined by checking which side made the last move
+            // Determine the winner and loser IDs
+            winnerId = chess.turn() === "w" ? players[1].id : players[0].id;
+            loserId = chess.turn() === "w" ? players[0].id : players[1].id;
+            console.log("Game completed", winnerId, loserId)
+
           } else if (chess.isDraw()) { // if it is a draw
             setOver("Draw"); // set message to "Draw"
           } else {
             setOver("Game over");
+          }
+
+          // Emit gameCompleted event if the game ended in checkmate or draw
+          if (winnerId && loserId) {
+            socket.emit('gameCompleted', { winnerId, loserId });
           }
         }
 
@@ -65,7 +74,7 @@ function Game({ players, room, orientation, cleanup }) {
         return null;
       } // null if the move was illegal, the move object if the move was legal
     },
-    [chess]
+    [chess, players]
   );
 
   // onDrop function
@@ -146,4 +155,5 @@ function Game({ players, room, orientation, cleanup }) {
     </Stack>
   )
 }
-export default Game
+
+export default Game;
