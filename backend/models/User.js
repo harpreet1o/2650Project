@@ -1,45 +1,44 @@
 // models/User.js
+import sqlite3 from 'sqlite3';
+import bcrypt from 'bcryptjs';
 
-import mongoose from 'mongoose'
-import bcrypt from 'bcryptjs'
-
-const UserSchema = new mongoose.Schema({
-  googleId: {
-    type: String,
-    unique: true,
-    sparse: true
-  },
-  email: {
-    type: String,
-    required: true,
-    unique: true
-  },
-  name: {
-    type: String,
-    required: true
-  },
-  password: {
-    type: String
-  },
-  date: {
-    type: Date,
-    default: Date.now
+// Initialize SQLite database
+const db = new sqlite3.Database('./database.sqlite', (err) => {
+  if (err) {
+    console.error('Error opening database:', err.message);
+  } else {
+    console.log('Connected to SQLite database.');
+    db.run(`CREATE TABLE IF NOT EXISTS user (
+      id INTEGER PRIMARY KEY,
+      email TEXT UNIQUE,
+      name TEXT,
+      password TEXT
+    )`);
   }
 });
 
-UserSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
-    return next();
-  }
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-  next();
-});
 
-UserSchema.methods.matchPassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+
+const findUserById = (id, cb) => {
+  db.get('SELECT name FROM user WHERE id = ?', [id], (err, row) => {
+    cb(err, row);
+  });
 };
 
-const User = mongoose.model('User', UserSchema);
-  
-export default User;
+
+const createUser = ({ id, email, name, password }, cb) => {
+
+  const salt = bcrypt.genSaltSync(10);
+  const hashedPassword = password ? bcrypt.hashSync(password, salt) : null;
+  db.run(
+    'INSERT INTO user (id, email, name, password) VALUES (?, ?, ?, ?)',
+    [id, email, name, hashedPassword],
+    function (err) {
+      cb(err, { id,password, email, name });
+    }
+  );
+};
+
+const matchPassword = (password, hash) => bcrypt.compareSync(password, hash);
+
+export { db,  findUserById, createUser };

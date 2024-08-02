@@ -9,6 +9,7 @@ import { createClient } from "redis";
 import sql from 'mssql';
 import config from './config.js';
 import sqlite3 from 'sqlite3';
+import authRoutes from './routes/auth.js';
 
 const secretKeyJWT = "asdasdsadasdasdasdsa";
 const port = 3000;
@@ -43,6 +44,7 @@ app.use(
     credentials: true,
   })
 );
+app.use('/', authRoutes);
 
 app.get("/", (req, res) => {
   res.send("Hello World!");

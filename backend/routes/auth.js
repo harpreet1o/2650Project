@@ -1,161 +1,72 @@
+// routes/auth.js
 import express from 'express';
 import passport from 'passport';
-import GoogleStrategy from 'passport-google-oidc';
-import LocalStrategy from 'passport-local';
-import User from '../models/User.js';
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+import jwt from 'jsonwebtoken';
+import { createUser, findUserById } from '../models/User.js';
 
-// Configure the Google strategy for use by Passport.
+const secretKeyJWT = "asdasdsadasdasdasdsa";
 
 passport.use(new GoogleStrategy({
-    clientID: process.env['GOOGLE_CLIENT_ID'],
-    clientSecret: process.env['GOOGLE_CLIENT_SECRET'],
-    callbackURL: '/oauth2/redirect/google',
-    scope: ['profile', 'email']
-}, async function verify(issuer, profile, cb) {
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  callbackURL: 'http://localhost:3000/oauth2/redirect/google', // Ensure this matches your route
+  scope: ['profile', 'email', 'openid']
+}, (accessToken, refreshToken, profile, cb) => {
+    console.log(profile.id);
+  const newUser = {
+    id: profile.id,
+    email: profile.emails[0].value,
+    name: profile.displayName,
+  };
 
+ 
 
-    // Check if user exists in MongoDB
-    console.log("profile: ", profile)
-    const newUser = {
-        googleId: profile.id,
-        email: profile.emails[0].value,
-        name: profile.displayName
-    };
+    createUser(newUser, (err, user) => {
+      if (err) return cb(err);
+      return cb(null, user);
+    })
+  }));
 
-    try {
-        let user = await User.findOne({ googleId: profile.id });
+passport.serializeUser((user, cb) => {
+  process.nextTick(() => {
+    cb(null, user.id);
+  });
+});
 
-        if (user) {
-            return cb(null, user);
-        } else {
-            user = new User(newUser);
-            await user.save();
-            return cb(null, user);
-        }
-    } catch (err) {
-        console.error(err);
-        return cb(err, null);
+passport.deserializeUser((id, cb) => {
+  findUserById(id, (err, user) => {
+    cb(err, user);
+  });
+});
+
+const router = express.Router();
+
+// Utility function to generate JWT
+const generateToken = (user) => {
+  return jwt.sign({ id: user.id }, secretKeyJWT, { expiresIn: '1h' });
+};
+
+router.get('/login/federated/google',()=>{
+    if(req.cookies.token){
+        const decoded=jwt.verify(token, secretKeyJWT);
+     res.send(decoded.id);
     }
-}));
-
-// configure the local strategy for passport for user login
-passport.use(
-    new LocalStrategy(
-        { usernameField: 'email' },
-        async (email, password, done) => {
-            try {
-                let user = await User.findOne({ email });
-
-                if (!user) {
-                    return done(null, false, { message: 'Invalid credentials' });
-                }
-
-                const isMatch = await user.matchPassword(password);
-
-                if (!isMatch) {
-                    return done(null, false, { message: 'Invalid credentials' });
-                }
-
-                return done(null, user);
-            } catch (err) {
-                console.error(err);
-                return done(err, null);
-            }
-        }
-    )
-);
-
-// Configure Passport authenticated session persistence.
-
-passport.serializeUser(function (user, cb) {
-    process.nextTick(function () {
-        cb(null, user.id);
+     else passport.authenticate('google')
     });
-});
-
-passport.deserializeUser(async function (id, cb) {
-    try {
-        const user = await User.findById(id);
-        cb(null, user);
-    } catch (err) {
-        cb(err, null);
-    }
-});
-
-
-var router = express.Router();
-
-
-/* GET /login/federated/accounts.google.com
- *
- * This route redirects the user to Google, where they will authenticate.
- * redirected back to the app at `GET /oauth2/redirect/accounts.google.com`.
- */
-router.get('/login/federated/google', passport.authenticate('google'));
 
 router.get('/oauth2/redirect/google', passport.authenticate('google', {
-    successReturnToOrRedirect: 'http://localhost:5173/',
-    failureRedirect: 'http://localhost:5173/'
-}));
+    session: false,
+    failureRedirect: 'http://localhost:5173/login'
+  }), (req, res) => {
+    const token = generateToken(req.user);
+    res.cookie('token', token, { httpOnly: true, secure: true, sameSite: "none" });
+    res.redirect('http://localhost:5173/');
+  });
 
-/*
- * This route logs the user out.
- */
-router.get('/logout', function (req, res, next) {
-    req.logout(function (err) {
-        if (err) { return next(err); }
-        res.redirect('/current_user')
-    });
+router.post('/logout', (req, res) => {
+  res.clearCookie('token');
+  res.redirect('/');
 });
 
-// Register route
-router.post('/register', async (req, res) => {
-    const { email, name, password } = req.body;
-    console.log(email)
-    try {
-        let user = await User.findOne({ email });
-
-        if (user) {
-            return res.status(400).json({ msg: 'User already exists' });
-        }
-
-        user = new User({ email, name, password });
-        await user.save();
-
-        req.login(user, (err) => {
-            if (err) {
-                return res.status(500).send(err);
-            }
-            return res.status(201).json(user);
-        });
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server error');
-    }
-});
-
-// Login route
-router.post('/login', (req, res, next) => {
-    passport.authenticate('local', (err, user, info) => {
-        if (err) {
-            return next(err);
-        }
-        if (!user) {
-            return res.status(400).json({ msg: info.message });
-        }
-        req.login(user, (err) => {
-            if (err) {
-                return next(err);
-            }
-            return res.json(user);
-        });
-    })(req, res, next);
-});
-
-
-// Route to get current user
-router.get('/current_user', (req, res) => {
-    res.send(req.user);
-});
-
-export default router
+export default router;
