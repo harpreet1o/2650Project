@@ -16,6 +16,8 @@ import { v4 as uuidV4 } from 'uuid';
 import logger from "morgan";
 import userRouter from "./routes/user.js";
 import authRouter from "./routes/auth.js";
+import gameRouter from "./routes/game.js";
+
 import connectDB from "./db.js";
 import onGameCompleted from "./controllers/game.js";
 
@@ -82,6 +84,8 @@ app.use(passport.authenticate('session'));
 // router for authentication
 app.use("/", authRouter)
 app.use("/user", userRouter)
+app.use("/games", gameRouter)
+
 
 
 app.get("/", (req, res) => {

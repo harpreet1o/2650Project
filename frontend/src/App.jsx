@@ -4,6 +4,7 @@ import Register from './components/Register';
 import Navbar from './components/Navbar';
 import Home from "./Home";
 import ProfilePage from './pages/ProfilePage';
+import GameDetails from './components/GameDetails';
 
 
 export default function App() {
@@ -16,6 +17,7 @@ export default function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/" element={<Home />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/game/:gameId" element={<GameDetails />} />
       </Routes>
     </Router>
   )

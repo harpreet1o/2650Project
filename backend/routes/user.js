@@ -19,4 +19,17 @@ router.get('/profile', isAuthenticated, async (req, res) => {
     }
 });
 
+
+router.get('/profile/games', isAuthenticated, async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const user = await User.findById(userId).populate('games.gameId');
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        res.json(user.games);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error });
+    }
+});
 export default router;
