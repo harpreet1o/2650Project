@@ -4,7 +4,7 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
-import { createUser, findUserByEmail, findUserById,matchPassword } from '../models/User.js';
+import { createUser, findUserByEmail, matchPassword, findUserById } from '../models/User.js';
 
 const secretKeyJWT = "asdasdsadasdasdasdsa";
 
@@ -52,6 +52,23 @@ const router = express.Router();
 // Utility function to generate JWT
 const generateToken = (userId) => {
   return jwt.sign({ id: userId }, secretKeyJWT, { expiresIn: '24h' });
+};
+
+// Middleware to authenticate the JWT token
+const authenticateJWT = (req, res, next) => {
+  const token = req.cookies.token;
+
+  if (token) {
+    jwt.verify(token, secretKeyJWT, (err, decoded) => {
+      if (err) {
+        return res.sendStatus(403);
+      }
+      req.user = decoded;
+      next();
+    });
+  } else {
+    res.sendStatus(401);
+  }
 };
 
 // User registration route
@@ -136,6 +153,19 @@ router.get('/oauth2/redirect/google', passport.authenticate('google', {
 router.post('/logout', (req, res) => {
   res.clearCookie('token');
   res.redirect('/');
+});
+
+// Route to get current user
+router.get('/current_user', authenticateJWT, (req, res) => {
+  findUserById(req.user.id, (err, user) => {
+    if (err) {
+      return res.status(500).json({ message: 'Internal server error.' });
+    }
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+    res.json({ username: user.name });
+  });
 });
 
 export default router;

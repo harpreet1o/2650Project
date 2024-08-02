@@ -1,12 +1,20 @@
 // components/Login.js
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import axios from 'axios';
 import { UserContext } from '../context/UserContext';
+import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
     const [formData, setFormData] = useState({ email: '', password: '' });
-    const { setUser } = useContext(UserContext);
+    const { user, setUser } = useContext(UserContext);
     const [error, setError] = useState('');
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        if (user) {
+            navigate('/');
+        }
+    }, [user, navigate]);
 
     const onChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -18,11 +26,10 @@ const Login = () => {
         try {
             const res = await axios.post('http://localhost:3000/login', formData, { withCredentials: true });
             setUser(res.data.user);
-            window.location.href = 'http://localhost:5173/';
+            navigate('/');
         } catch (err) {
             if (err.response && err.response.data) {
-                setError(err.response.data.msg);
-                console.error(err.response.data);
+                setError(err.response.data.message);
             } else {
                 setError('An error occurred. Please try again.');
             }
@@ -80,7 +87,6 @@ const Login = () => {
                 </div>
             </div>
         </div>
-
     );
 };
 

@@ -12,6 +12,8 @@ const UserProvider = ({ children }) => {
         const res = await axios.get('http://localhost:3000/current_user', { withCredentials: true });
         if(!res)
         setUser("not logged in");
+      else 
+      setUser(res.data.username);
       } catch (err) {
         console.error(err);
       }

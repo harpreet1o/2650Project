@@ -1,6 +1,8 @@
 import { Chess } from 'chess.js';
 import { io } from "socket.io-client";
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { UserContext } from './context/UserContext';
 
 export default function ChessBoard() {
   const chess = useMemo(() => new Chess(), []);
@@ -11,11 +13,19 @@ export default function ChessBoard() {
   const [players, setPlayers] = useState({ white: null, black: null });
   const [gameOverMessage, setGameOverMessage] = useState(null); // New state for game over message
 
+  const navigate = useNavigate();
+  const { user } = useContext(UserContext);
+
   const socket = useMemo(() => io("http://localhost:3000", {
     withCredentials: true,
   }), []);
 
   useEffect(() => {
+    // Check if user is logged in
+    if (!user) {
+      navigate('/');
+    }
+
     socket.on("connect", () => {
       console.log("connected", socket.id);
     });
@@ -47,7 +57,7 @@ export default function ChessBoard() {
       socket.off("players");
       socket.off("gameOver");
     };
-  }, [socket, chess]);
+  }, [socket, chess, navigate, user]);
 
   const getPieceUnicode = (piece) => {
     const unicodePieces = {

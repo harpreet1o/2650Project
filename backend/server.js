@@ -34,9 +34,6 @@ redisClient.on("error", (error) => console.error(`Error: ${error}`));
   console.log('Redis client connected successfully.');
 })();
 
-
-
-
 app.use(
   cors({
     origin: "http://localhost:5173",
@@ -44,23 +41,9 @@ app.use(
     credentials: true,
   })
 );
+app.use(express.json());
 app.use(cookieParser());
 app.use('/', authRoutes);
-
-app.get("/", (req, res) => {
-  res.send("Hello World!");
-});
-
-app.get("/login", (req, res) => {
-  const user = Math.floor(Math.random() * 1000);
-  const token = jwt.sign({ _id: user }, secretKeyJWT);
-
-  res
-    .cookie("token", token, { httpOnly: true, secure: true, sameSite: "none" })
-    .json({
-      message: "Login Success",
-    });
-});
 
 // Function to get or create a room for the user and emit their assigned role
 const assignUserToRoom = async (socket, userId) => {
@@ -117,7 +100,7 @@ io.use(async (socket, next) => {
       const decoded = jwt.verify(token, secretKeyJWT);
       socket.decoded = decoded; // Attach decoded token payload to socket object
 
-      assignUserToRoom(socket, decoded._id).then((roomIndex) => {
+      assignUserToRoom(socket, decoded.id).then((roomIndex) => {
         if (roomIndex !== undefined) {
           socket.join(roomIndex.toString());
           redisClient.get("rooms").then((rooms) => {
@@ -144,9 +127,15 @@ io.on("connection", (socket) => {
 
   // Handle incoming moves
   socket.on("move", async (move) => {
-    const userId = socket.decoded._id;
+    const userId = socket.decoded.id; // Changed from _id to id
     const userRoomKey = `userRoom:${userId}`;
     const userRoom = JSON.parse(await redisClient.get(userRoomKey));
+
+    if (!userRoom) {
+      console.log(`User room not found for user: ${userId}`);
+      return;
+    }
+
     const { roomIndex } = userRoom;
     const rooms = JSON.parse(await redisClient.get("rooms"));
     const room = rooms[roomIndex];
@@ -163,15 +152,13 @@ io.on("connection", (socket) => {
         if (game.isCheckmate()) {
           gameOver = true;
           gameOverMessage = "Checkmate";
-        }else if (game.isStalemate()) {
+        } else if (game.isStalemate()) {
           gameOver = true;
           gameOverMessage = "Stalemate";
-        }
-        else if (game.isInsufficientMaterial()) {
+        } else if (game.isInsufficientMaterial()) {
           gameOver = true;
           gameOverMessage = "Insufficient material";
-        }
-        else if (game.isThreefoldRepetition()) {
+        } else if (game.isThreefoldRepetition()) {
           gameOver = true;
           gameOverMessage = "Threefold repetition";
         }
@@ -193,9 +180,15 @@ io.on("connection", (socket) => {
 
   // Handle disconnection
   socket.on("disconnect", async () => {
-    const userId = socket.decoded._id;
+    const userId = socket.decoded.id; // Changed from _id to id
     const userRoomKey = `userRoom:${userId}`;
     const userRoom = JSON.parse(await redisClient.get(userRoomKey));
+
+    if (!userRoom) {
+      console.log(`User room not found for user: ${userId}`);
+      return;
+    }
+
     const { roomIndex } = userRoom;
     const rooms = JSON.parse(await redisClient.get("rooms"));
 
