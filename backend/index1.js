@@ -44,6 +44,7 @@ app.use(
     credentials: true,
   })
 );
+app.use(cookieParser());
 app.use('/', authRoutes);
 
 app.get("/", (req, res) => {

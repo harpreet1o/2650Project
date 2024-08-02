@@ -10,7 +10,7 @@ const secretKeyJWT = "asdasdsadasdasdasdsa";
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: 'http://localhost:3000/auth/oauth2/redirect/google', // Ensure this matches your route
+  callbackURL: 'http://localhost:3000/oauth2/redirect/google', // Ensure this matches your route
   scope: ['profile', 'email', 'openid']
 }, (accessToken, refreshToken, profile, cb) => {
   const newUser = {
@@ -65,7 +65,7 @@ router.get('/login/federated/google', (req, res, next) => {
           return res.status(500).json({ message: 'Internal server error.' });
         }
         if (user) {
-          return res.json({ message: 'User is already authenticated', user });
+            res.redirect(`http://localhost:5173`);
         }
         return next();
       });
@@ -75,13 +75,13 @@ router.get('/login/federated/google', (req, res, next) => {
   }
 });
 
-router.get('/auth/oauth2/redirect/google', passport.authenticate('google', {
+router.get('/oauth2/redirect/google', passport.authenticate('google', {
   session: false,
   failureRedirect: 'http://localhost:5173/login'
 }), (req, res) => {
   const token = generateToken(req.user);
   res.cookie('token', token, { httpOnly: true, secure: true, sameSite: "none" });
-  res.json({ token, user: req.user });
+  res.redirect(`http://localhost:5173`);
 });
 
 router.post('/logout', (req, res) => {
