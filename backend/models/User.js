@@ -9,7 +9,7 @@ const db = new sqlite3.Database('./database.sqlite', (err) => {
   } else {
     console.log('Connected to SQLite database.');
     db.run(`CREATE TABLE IF NOT EXISTS user (
-      id INTEGER PRIMARY KEY,
+      id TEXT PRIMARY KEY,
       email TEXT UNIQUE,
       name TEXT,
       password TEXT
@@ -17,28 +17,25 @@ const db = new sqlite3.Database('./database.sqlite', (err) => {
   }
 });
 
-
-
 const findUserById = (id, cb) => {
-  db.get('SELECT name FROM user WHERE id = ?', [id], (err, row) => {
+  db.get('SELECT id, name, email FROM user WHERE id = ?', [id], (err, row) => {
     cb(err, row);
   });
 };
 
-
 const createUser = ({ id, email, name, password }, cb) => {
-
-  const salt = bcrypt.genSaltSync(10);
-  const hashedPassword = password ? bcrypt.hashSync(password, salt) : null;
+  let hashedPassword = null;
+  if (password) {
+    const salt = bcrypt.genSaltSync(10);
+    hashedPassword = bcrypt.hashSync(password, salt);
+  }
   db.run(
     'INSERT INTO user (id, email, name, password) VALUES (?, ?, ?, ?)',
     [id, email, name, hashedPassword],
     function (err) {
-      cb(err, { id,password, email, name });
+      cb(err, { id, email, name });
     }
   );
 };
 
-const matchPassword = (password, hash) => bcrypt.compareSync(password, hash);
-
-export { db,  findUserById, createUser };
+export { db, findUserById, createUser };

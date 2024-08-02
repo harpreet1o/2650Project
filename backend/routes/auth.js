@@ -10,23 +10,29 @@ const secretKeyJWT = "asdasdsadasdasdasdsa";
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: 'http://localhost:3000/oauth2/redirect/google', // Ensure this matches your route
+  callbackURL: 'http://localhost:3000/auth/oauth2/redirect/google', // Ensure this matches your route
   scope: ['profile', 'email', 'openid']
 }, (accessToken, refreshToken, profile, cb) => {
-    console.log(profile.id);
   const newUser = {
     id: profile.id,
     email: profile.emails[0].value,
     name: profile.displayName,
   };
 
- 
-
-    createUser(newUser, (err, user) => {
-      if (err) return cb(err);
+  createUser(newUser, (err, user) => {
+    if (err && err.message.includes('UNIQUE constraint failed')) {
+      // User already exists
+      findUserById(profile.id, (err, existingUser) => {
+        if (err) return cb(err);
+        return cb(null, existingUser);
+      });
+    } else if (err) {
+      return cb(err);
+    } else {
       return cb(null, user);
-    })
-  }));
+    }
+  });
+}));
 
 passport.serializeUser((user, cb) => {
   process.nextTick(() => {
@@ -44,25 +50,39 @@ const router = express.Router();
 
 // Utility function to generate JWT
 const generateToken = (user) => {
-  return jwt.sign({ id: user.id }, secretKeyJWT, { expiresIn: '1h' });
+  return jwt.sign({ id: user.id }, secretKeyJWT, { expiresIn: '24h' });
 };
 
-router.get('/login/federated/google',()=>{
-    if(req.cookies.token){
-        const decoded=jwt.verify(token, secretKeyJWT);
-     res.send(decoded.id);
-    }
-     else passport.authenticate('google')
+router.get('/login/federated/google', (req, res, next) => {
+  if (req.cookies.token) {
+    const token = req.cookies.token;
+    jwt.verify(token, secretKeyJWT, (err, decoded) => {
+      if (err) {
+        return res.status(403).json({ message: 'Failed to authenticate token.' });
+      }
+      findUserById(decoded.id, (err, user) => {
+        if (err) {
+          return res.status(500).json({ message: 'Internal server error.' });
+        }
+        if (user) {
+          return res.json({ message: 'User is already authenticated', user });
+        }
+        return next();
+      });
     });
+  } else {
+    passport.authenticate('google')(req, res, next);
+  }
+});
 
-router.get('/oauth2/redirect/google', passport.authenticate('google', {
-    session: false,
-    failureRedirect: 'http://localhost:5173/login'
-  }), (req, res) => {
-    const token = generateToken(req.user);
-    res.cookie('token', token, { httpOnly: true, secure: true, sameSite: "none" });
-    res.redirect('http://localhost:5173/');
-  });
+router.get('/auth/oauth2/redirect/google', passport.authenticate('google', {
+  session: false,
+  failureRedirect: 'http://localhost:5173/login'
+}), (req, res) => {
+  const token = generateToken(req.user);
+  res.cookie('token', token, { httpOnly: true, secure: true, sameSite: "none" });
+  res.json({ token, user: req.user });
+});
 
 router.post('/logout', (req, res) => {
   res.clearCookie('token');
