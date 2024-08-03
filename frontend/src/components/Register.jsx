@@ -17,6 +17,7 @@ const Register = () => {
         setMessage('');
         try {
             const res = await axios.post('http://localhost:3000/register', formData, { withCredentials: true });
+            console.log(res.data);
             setMessage(res.data.message );
             setFormData({ email: '', name: '', password: '' });
         } catch (err) {

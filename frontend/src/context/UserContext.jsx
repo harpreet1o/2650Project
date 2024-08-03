@@ -10,11 +10,11 @@ const UserProvider = ({ children }) => {
     const fetchUser = async () => {
       try {
         const res = await axios.get('http://localhost:3000/current_user', { withCredentials: true });
-        if(!res)
-        setUser("not logged in");
-      else 
-      setUser(res.data.username);
-      } catch (err) {
+        if(res)
+        setUser(res.data.username);
+      }
+      catch (err) {
+        setUser(null);
         console.error(err);
       }
     };
