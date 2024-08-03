@@ -5,7 +5,7 @@ dotenv.config();
 
 const config = {
   database: process.env.DATABASE_PATH,
-  secretKeyJWT: process.env.SECRET_KEY_JWT,
+  secretKeyJWT: 'harganga',
   port: process.env.PORT || 3000,
 };
 

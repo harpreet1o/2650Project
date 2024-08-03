@@ -12,8 +12,7 @@ import sqlite3 from 'sqlite3';
 import authRoutes from './routes/auth.js';
 import { saveGameResult } from "./models/games.js";
 
-
-const secretKeyJWT = "asdasdsadasdasdasdsa";
+const secretKeyJWT = "harganga";
 const port = 3000;
 
 const app = express();

@@ -6,7 +6,7 @@ import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { createUser, findUserByEmail, matchPassword, findUserById } from '../models/User.js';
 
-const secretKeyJWT = "asdasdsadasdasdasdsa";
+const secretKeyJWT = 'harganga'
 
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
@@ -96,7 +96,7 @@ router.post('/register', (req, res) => {
       }
       const token = generateToken(user.id);
       res.cookie('token', token, { httpOnly: true, secure: true, sameSite: "none" });
-      res.status(201).json({ message:"created succesfully"});
+      res.status(201).json({ message: "created succesfully" });
     });
   });
 });
@@ -151,8 +151,9 @@ router.get('/oauth2/redirect/google', passport.authenticate('google', {
 });
 
 router.post('/logout', (req, res) => {
-  res.clearCookie('token');
-  res.redirect('/');
+
+  res.clearCookie('token', { httpOnly: true, secure: true, sameSite: "none" });
+  res.json(200)
 });
 
 // Route to get current user
@@ -187,80 +188,90 @@ router.get('/user/profile', authenticateJWT, (req, res) => {
 });
 
 router.get('/user/games', authenticateJWT, (req, res) => {
-  res.status(200).json([
-    {
-        id: 1,
-        white_player: 'Player1',
-        black_player: 'Player2',
-        winner: 'Player1',
-        loser: 'Player2',
-        game_state: [
-            { from: 'e2', to: 'e4' },
-            { from: 'e7', to: 'e5' },
-            { from: 'g1', to: 'f3' },
-            { from: 'b8', to: 'c6' },
-            { from: 'f1', to: 'b5' },
-            { from: 'a7', to: 'a6' },
-            { from: 'b5', to: 'a4' },
-            { from: 'g8', to: 'f6' }
-        ],
-        timestamp: '2023-07-22T12:30:00Z'
-    },
-    {
-        id: 2,
-        white_player: 'Player3',
-        black_player: 'Player4',
-        winner: 'Player4',
-        loser: 'Player3',
-        game_state: [
-            { from: 'd2', to: 'd4' },
-            { from: 'd7', to: 'd5' },
-            { from: 'c2', to: 'c4' },
-            { from: 'e7', to: 'e6' },
-            { from: 'g1', to: 'f3' },
-            { from: 'g8', to: 'f6' },
-            { from: 'b1', to: 'c3' },
-            { from: 'c7', to: 'c6' }
-        ],
-        timestamp: '2023-07-23T14:30:00Z'
-    },
-    {
-        id: 3,
-        white_player: 'Player1',
-        black_player: 'Player3',
-        winner: 'Player1',
-        loser: 'Player3',
-        game_state: [
-            { from: 'e2', to: 'e4' },
-            { from: 'e7', to: 'e6' },
-            { from: 'd2', to: 'd4' },
-            { from: 'd7', to: 'd5' },
-            { from: 'b1', to: 'c3' },
-            { from: 'd5', to: 'e4' },
-            { from: 'c3', to: 'e4' },
-            { from: 'g8', to: 'f6' }
-        ],
-        timestamp: '2023-07-24T16:00:00Z'
-    },
-    {
-        id: 4,
-        white_player: 'Player2',
-        black_player: 'Player4',
-        winner: 'Player2',
-        loser: 'Player4',
-        game_state: [
-            { from: 'e2', to: 'e4' },
-            { from: 'c7', to: 'c5' },
-            { from: 'g1', to: 'f3' },
-            { from: 'd7', to: 'd6' },
-            { from: 'd2', to: 'd4' },
-            { from: 'c5', to: 'd4' },
-            { from: 'f3', to: 'd4' },
-            { from: 'g8', to: 'f6' }
-        ],
-        timestamp: '2023-07-25T18:45:00Z'
-    }
-])
+  try {
+    getGamesByUserId(req.user.id, (err, games) => {
+      if (err) {
+        return res.status(500).json({ message: 'Internal server error.' });
+      }
+      res.json(games);
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error });
+  }
+  //   res.status(200).json([
+  //     {
+  //         id: 1,
+  //         white_player: 'Player1',
+  //         black_player: 'Player2',
+  //         winner: 'Player1',
+  //         loser: 'Player2',
+  //         game_state: [
+  //             { from: 'e2', to: 'e4' },
+  //             { from: 'e7', to: 'e5' },
+  //             { from: 'g1', to: 'f3' },
+  //             { from: 'b8', to: 'c6' },
+  //             { from: 'f1', to: 'b5' },
+  //             { from: 'a7', to: 'a6' },
+  //             { from: 'b5', to: 'a4' },
+  //             { from: 'g8', to: 'f6' }
+  //         ],
+  //         timestamp: '2023-07-22T12:30:00Z'
+  //     },
+  //     {
+  //         id: 2,
+  //         white_player: 'Player3',
+  //         black_player: 'Player4',
+  //         winner: 'Player4',
+  //         loser: 'Player3',
+  //         game_state: [
+  //             { from: 'd2', to: 'd4' },
+  //             { from: 'd7', to: 'd5' },
+  //             { from: 'c2', to: 'c4' },
+  //             { from: 'e7', to: 'e6' },
+  //             { from: 'g1', to: 'f3' },
+  //             { from: 'g8', to: 'f6' },
+  //             { from: 'b1', to: 'c3' },
+  //             { from: 'c7', to: 'c6' }
+  //         ],
+  //         timestamp: '2023-07-23T14:30:00Z'
+  //     },
+  //     {
+  //         id: 3,
+  //         white_player: 'Player1',
+  //         black_player: 'Player3',
+  //         winner: 'Player1',
+  //         loser: 'Player3',
+  //         game_state: [
+  //             { from: 'e2', to: 'e4' },
+  //             { from: 'e7', to: 'e6' },
+  //             { from: 'd2', to: 'd4' },
+  //             { from: 'd7', to: 'd5' },
+  //             { from: 'b1', to: 'c3' },
+  //             { from: 'd5', to: 'e4' },
+  //             { from: 'c3', to: 'e4' },
+  //             { from: 'g8', to: 'f6' }
+  //         ],
+  //         timestamp: '2023-07-24T16:00:00Z'
+  //     },
+  //     {
+  //         id: 4,
+  //         white_player: 'Player2',
+  //         black_player: 'Player4',
+  //         winner: 'Player2',
+  //         loser: 'Player4',
+  //         game_state: [
+  //             { from: 'e2', to: 'e4' },
+  //             { from: 'c7', to: 'c5' },
+  //             { from: 'g1', to: 'f3' },
+  //             { from: 'd7', to: 'd6' },
+  //             { from: 'd2', to: 'd4' },
+  //             { from: 'c5', to: 'd4' },
+  //             { from: 'f3', to: 'd4' },
+  //             { from: 'g8', to: 'f6' }
+  //         ],
+  //         timestamp: '2023-07-25T18:45:00Z'
+  //     }
+  // ])
 })
 
 export default router;

@@ -9,9 +9,9 @@ const Navbar = () => {
 
   const handleLogout = async () => {
     try {
-      await axios.post('http://localhost:3000/logout', {}, { withCredentials: true });
+      await axios.post('http://localhost:3000/logout', { withCredentials: true });
       setUser(null);
-      navigate('/');
+      navigate('/login');
     } catch (err) {
       console.error('Error during logout:', err);
     }
