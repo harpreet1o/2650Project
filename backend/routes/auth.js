@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { createUser, findUserByEmail, matchPassword, findUserById } from '../models/User.js';
 import dotenv from 'dotenv';
+import { getGamesByUserId } from '../models/games.js';
 
 
 const secretKeyJWT="harganga";

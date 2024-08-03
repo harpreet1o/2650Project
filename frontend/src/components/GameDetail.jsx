@@ -12,15 +12,16 @@ const GameDetail = () => {
     const [selectedMoveIndex, setSelectedMoveIndex] = useState(0);
 
     useEffect(() => {
-        if (game && game.game_state) {
+        if (game && JSON.parse(game.game_state).length > 0) {
             updateBoard(selectedMoveIndex);
         }
     }, [game, chess, selectedMoveIndex]);
 
     const updateBoard = (moveIndex) => {
-        chess.reset();
+        const gameState = JSON.parse(game.game_state);
+        chess.load(gameState[moveIndex].before);
         for (let i = 0; i <= moveIndex; i++) {
-            chess.move(game.game_state[i]);
+            chess.move(gameState[i].san);
         }
         setBoard(chess.board());
     };
@@ -59,7 +60,7 @@ const GameDetail = () => {
                 <p><strong>Black Player:</strong> {game.black_player}</p>
                 <p><strong>Winner:</strong> {game.winner}</p>
                 <p><strong>Loser:</strong> {game.loser}</p>
-                <p><strong>Timestamp:</strong> {new Date(game.timestamp).toLocaleString()}</p>
+                {game.timestamp && <p><strong>Timestamp:</strong> {new Date(game.timestamp).toLocaleString()}</p>}
             </div>
 
             <div className="grid grid-cols-8 grid-rows-8 gap-0 border-2 border-gray-800 w-80 h-80">
@@ -79,18 +80,16 @@ const GameDetail = () => {
                 )}
             </div>
             <div className="grid grid-cols-4 gap-4 mb-6">
-                {game.game_state.map((move, index) => (
+                {JSON.parse(game.game_state).map((move, index) => (
                     <button
                         key={index}
                         onClick={() => handleMoveClick(index)}
                         className={`p-2 border rounded ${selectedMoveIndex === index ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
                     >
-                        Move {index + 1}: {move.from} to {move.to}
+                        Move {index + 1}: {move.from} to {move.to}r
                     </button>
                 ))}
             </div>
-
-            
         </div>
     );
 };
