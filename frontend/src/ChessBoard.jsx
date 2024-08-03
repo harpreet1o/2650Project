@@ -90,13 +90,7 @@ const ChessBoard = () => {
 
   const socket = useSocket(chess, setBoard, setPlayerRole, setPlayers, setGameOverMessage);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setElapsedTime(prevTime => prevTime + 1);
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
+ 
 
   const handleSquareClick = (rowIndex, squareIndex, square) => {
     if (gameOverMessage) return; // Prevent moves if the game is over
@@ -142,10 +136,6 @@ const ChessBoard = () => {
         <div className={styles.playerInfo}>
           <p>White:</p>
           <p className={styles.playerName}>{players.white || "Not connected yet"}</p>
-        </div>
-        <div className={styles.timer}>
-          <p>Elapsed Time:</p>
-          <p className={styles.time}>{new Date(elapsedTime * 1000).toISOString().substr(11, 8)}</p>
         </div>
         <div className={styles.playerInfo}>
           <p>Black:</p>
