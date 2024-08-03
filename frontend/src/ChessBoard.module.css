@@ -1,0 +1,112 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  padding: 20px;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  gap: 0;
+  border: 2px solid #4a4a4a;
+  width: 80vmin;
+  height: 80vmin;
+}
+
+.rotate180 {
+  transform: rotate(180deg);
+}
+
+.square {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.light {
+  background-color: #a9df93;
+}
+
+.dark {
+  background-color: #569352;
+}
+
+.selected {
+  background-color: #f2cd4d;
+}
+
+.availableMove {
+  background-color: #88c0d0;
+}
+
+.piece {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.gameOverMessage {
+  font-size: 1.5em;
+  color: red;
+  margin-bottom: 1em;
+}
+
+.info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 600px;
+  margin-bottom: 1em;
+  text-align: center;
+}
+
+.playerInfo, .timer {
+  flex: 1;
+}
+
+.playerName {
+  font-weight: bold;
+  font-size: 1.2em;
+}
+
+.timer {
+  font-size: 1.5em;
+}
+
+.time {
+  font-size: 1.5em;
+}
+
+.gameContainer {
+  display: flex;
+  gap: 20px;
+}
+
+.movesLog {
+  border: 2px solid #4a4a4a;
+  padding: 10px;
+  width: 200px;
+  max-height: 80vmin;
+  overflow-y: auto;
+}
+
+.movesLog h2 {
+  font-size: 1.2em;
+  margin-bottom: 10px;
+}
+
+.movesLog ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.movesLog li {
+  font-size: 1em;
+  margin-bottom: 5px;
+}

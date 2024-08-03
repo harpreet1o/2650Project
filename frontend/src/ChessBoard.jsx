@@ -1,16 +1,23 @@
 import { Chess } from 'chess.js';
 import { io } from "socket.io-client";
 import { useState, useMemo, useEffect } from 'react';
+import styles from './ChessBoard.module.css';
 
-export default function ChessBoard() {
-  const chess = useMemo(() => new Chess(), []);
-  const [board, setBoard] = useState(chess.board());
-  const [selectedSquare, setSelectedSquare] = useState(null);
-  const [availableMoves, setAvailableMoves] = useState([]);
-  const [playerRole, setPlayerRole] = useState("w");
-  const [players, setPlayers] = useState({ white: null, black: null });
-  const [gameOverMessage, setGameOverMessage] = useState(null); // New state for game over message
+// Import piece images
+import wP from './images/chess-pieces/wP.png';
+import wR from './images/chess-pieces/wR.png';
+import wN from './images/chess-pieces/wN.png';
+import wB from './images/chess-pieces/wB.png';
+import wQ from './images/chess-pieces/wQ.png';
+import wK from './images/chess-pieces/wK.png';
+import bP from './images/chess-pieces/bP.png';
+import bR from './images/chess-pieces/bR.png';
+import bN from './images/chess-pieces/bN.png';
+import bB from './images/chess-pieces/bB.png';
+import bQ from './images/chess-pieces/bQ.png';
+import bK from './images/chess-pieces/bK.png';
 
+const useSocket = (chess, setBoard, setPlayerRole, setPlayers, setGameOverMessage) => {
   const socket = useMemo(() => io("http://localhost:3000", {
     withCredentials: true,
   }), []);
@@ -49,23 +56,47 @@ export default function ChessBoard() {
     };
   }, [socket, chess]);
 
-  const getPieceUnicode = (piece) => {
-    const unicodePieces = {
-      p: '♙',
-      r: '♜',
-      n: '♞',
-      b: '♝',
-      q: '♛',
-      k: '♚',
-      P: '♙',
-      R: '♖',
-      N: '♘',
-      B: '♗',
-      Q: '♕',
-      K: '♔',
-    };
-    return piece ? unicodePieces[piece.type] : '';
+  return socket;
+};
+
+const getPieceImage = (piece) => {
+  const pieceImages = {
+    p: bP,
+    r: bR,
+    n: bN,
+    b: bB,
+    q: bQ,
+    k: bK,
+    P: wP,
+    R: wR,
+    N: wN,
+    B: wB,
+    Q: wQ,
+    K: wK,
   };
+  const imageKey = piece ? (piece.color === 'w' ? piece.type.toUpperCase() : piece.type) : '';
+
+  return piece ? pieceImages[imageKey] : ''; };
+
+const ChessBoard = () => {
+  const chess = useMemo(() => new Chess(), []);
+  const [board, setBoard] = useState(chess.board());
+  const [selectedSquare, setSelectedSquare] = useState(null);
+  const [availableMoves, setAvailableMoves] = useState([]);
+  const [playerRole, setPlayerRole] = useState("w");
+  const [players, setPlayers] = useState({ white: null, black: null });
+  const [gameOverMessage, setGameOverMessage] = useState(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+
+  const socket = useSocket(chess, setBoard, setPlayerRole, setPlayers, setGameOverMessage);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setElapsedTime(prevTime => prevTime + 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   const handleSquareClick = (rowIndex, squareIndex, square) => {
     if (gameOverMessage) return; // Prevent moves if the game is over
@@ -105,29 +136,54 @@ export default function ChessBoard() {
   };
 
   return (
-    <div>
-      {gameOverMessage && <div className="game-over-message">{gameOverMessage}</div>}
-      <p>{playerRole === 'b' ? (players.white != null ? players.white : "not connected yet") : (players.black != null ? players.black : "not connected yet")}</p>
-
-      <div className={`grid grid-cols-8 grid-rows-8 gap-0 border-2 border-gray-800 w-80 h-80 ${playerRole === "b" ? "rotate-180" : ""}`}>
+    <div className={styles.container}>
+      {gameOverMessage && <div className={styles.gameOverMessage}>{gameOverMessage}</div>}
+      <div className={styles.info}>
+        <div className={styles.playerInfo}>
+          <p>White:</p>
+          <p className={styles.playerName}>{players.white || "Not connected yet"}</p>
+        </div>
+        <div className={styles.timer}>
+          <p>Elapsed Time:</p>
+          <p className={styles.time}>{new Date(elapsedTime * 1000).toISOString().substr(11, 8)}</p>
+        </div>
+        <div className={styles.playerInfo}>
+          <p>Black:</p>
+          <p className={styles.playerName}>{players.black || "Not connected yet"}</p>
+        </div>
+      </div>
+      <div className={`${styles.board} ${playerRole === "b" ? styles.rotate180 : ""}`}>
         {board.map((row, rowIndex) =>
           row.map((square, squareIndex) => (
             <div
-              key={(rowIndex) * 8 + (squareIndex)}
+              key={rowIndex * 8 + squareIndex}
               onClick={() => handleSquareClick(rowIndex, squareIndex, square)}
-              className={`w-full h-full flex items-center justify-center cursor-pointer ${(rowIndex + squareIndex) % 2 === 0 ? "bg-green-400" : "bg-green-800"} ${playerRole === "b" ? "rotate-180" : ""} ${selectedSquare && selectedSquare.row === rowIndex && selectedSquare.col === squareIndex ? "bg-yellow-500" : ""} ${isAvailableMove(rowIndex, squareIndex) ? "bg-blue-300" : ""}`}
+              className={`${styles.square} ${(rowIndex + squareIndex) % 2 === 0 ? styles.light : styles.dark} 
+                          ${playerRole === "b" ? styles.rotate180 : ""} 
+                          ${selectedSquare && selectedSquare.row === rowIndex && selectedSquare.col === squareIndex ? styles.selected : ""} 
+                          ${isAvailableMove(rowIndex, squareIndex) ? styles.availableMove : ""}`}
             >
-              <span
-                className={`text-2xl ${square && square.color === "w" ? "text-white" : "text-black"}`}
-              >
-                {getPieceUnicode(square)}
-              </span>
+              {
+  square && square.type && (
+    (() => {
+      console.log(square); // Log the square object for debugging
+      return (
+        <img
+          src={getPieceImage(square)}
+          
+          className={styles.piece}
+        />
+      );
+    })()
+  )
+}
+
             </div>
           ))
         )}
       </div>
-
-      <p>{playerRole === 'w' ? (players.white != null ? players.white : "not connected yet") : (players.black != null ? players.black : "not connected yet")}</p>
     </div>
   );
 }
+
+export default ChessBoard;
