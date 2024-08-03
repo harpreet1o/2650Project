@@ -12,7 +12,7 @@ import sqlite3 from 'sqlite3';
 import authRoutes from './routes/auth.js';
 import { saveGameResult } from "./models/games.js";
 
-const secretKeyJWT = "asdasdsadasdasdasdsa";
+const secretKeyJWT = "harganga";
 const port = 3000;
 
 const app = express();
@@ -24,15 +24,28 @@ const io = new Server(server, {
     credentials: true,
   },
 });
-
 const redisClient = createClient();
 
 redisClient.on("error", (error) => console.error(`Error: ${error}`));
 
+const clearAllRedisKeys = async () => {
+  try {
+    await redisClient.sendCommand(['FLUSHDB']);
+    console.log('All Redis keys cleared successfully.');
+  } catch (error) {
+    console.error(`Error clearing Redis keys: ${error}`);
+  }
+};
+
 (async () => {
   await redisClient.connect();
+  await clearAllRedisKeys();
   console.log('Redis client connected successfully.');
 })();
+
+
+
+
 
 app.use(
   cors({
@@ -52,59 +65,104 @@ const lobbies = {
   10: [] // 10 minutes lobby
 };
 
-const startTimer = (roomIndex, selectedTime) => {
-  if (!gameTimers[roomIndex]) {
-    const room = lobbies[selectedTime].find(room => room.roomIndex === roomIndex);
-    gameTimers[roomIndex] = {
+const startTimer = (uniqueRoomIndex) => {
+  if (!gameTimers[uniqueRoomIndex]) {
+    const [roomIndex, time] = uniqueRoomIndex.split('-');
+    const room = lobbies[time].find(room => room.roomIndex === parseInt(roomIndex));
+    if (!room) {
+      console.error(`Room not found in startTimer: ${uniqueRoomIndex}`);
+      return;
+    }
+    gameTimers[uniqueRoomIndex] = {
       whiteTime: room.time * 60, // Convert minutes to seconds
       blackTime: room.time * 60,
       currentPlayer: "w",
-      intervalId: setInterval(() => updateTimer(roomIndex), 1000),
+      intervalId: setInterval(() => updateTimer(uniqueRoomIndex), 1000),
     };
   }
 };
 
-const updateTimer = (roomIndex) => {
-  const timer = gameTimers[roomIndex];
+const updateTimer = (uniqueRoomIndex) => {
+  const timer = gameTimers[uniqueRoomIndex];
+  if (!timer) {
+    console.error(`Timer not found: ${uniqueRoomIndex}`);
+    return;
+  }
   if (timer.currentPlayer === "w") {
     timer.whiteTime--;
     if (timer.whiteTime <= 0) {
-      endGame(roomIndex, "black", "Time out");
+      endGame(uniqueRoomIndex, "black", "Time out");
     }
   } else {
     timer.blackTime--;
     if (timer.blackTime <= 0) {
-      endGame(roomIndex, "white", "Time out");
+      endGame(uniqueRoomIndex, "white", "Time out");
     }
   }
-  io.to(roomIndex.toString()).emit("timerUpdate", {
+  io.to(uniqueRoomIndex).emit("timerUpdate", {
     whiteTime: timer.whiteTime,
     blackTime: timer.blackTime,
   });
 };
 
-const endGame = (roomIndex, winner, reason) => {
-  clearInterval(gameTimers[roomIndex].intervalId);
-  io.to(roomIndex.toString()).emit("gameOver", reason);
-  // Handle game over logic and save results
-  delete gameTimers[roomIndex];
+const endGame = async (uniqueRoomIndex, winnerColor, reason) => {
+  const timer = gameTimers[uniqueRoomIndex];
+  if (timer) {
+    clearInterval(timer.intervalId);
+    delete gameTimers[uniqueRoomIndex];
+  }
+
+  const [roomIndex, selectedTime] = uniqueRoomIndex.split('-');
+  const lobby = lobbies[selectedTime];
+  const room = lobby.find(room => room.roomIndex === parseInt(roomIndex));
+  
+  if (room) {
+    const winner = winnerColor === "w" ? room.white : room.black;
+    const loser = winnerColor === "w" ? room.black : room.white;
+
+    io.to(uniqueRoomIndex).emit("gameOver", reason);
+    const gameState = JSON.stringify(new Chess(room.game).history({ verbose: true }));
+    
+    // Save game result and remove the room from Redis
+    saveGameResult(room.white, room.black, winner, loser, gameState, async (err) => {
+      if (!err) {
+        await redisClient.del(`userRoom:${room.white}`);
+        await redisClient.del(`userRoom:${room.black}`);
+      }
+    });
+
+    // Remove room from lobby
+    lobby.splice(lobby.findIndex(room => room.roomIndex === parseInt(roomIndex)), 1);
+
+    // Make all sockets leave the room and delete the room from the socket.io namespace
+    io.socketsLeave(uniqueRoomIndex);
+  } else {
+    console.error(`Room not found in endGame: ${uniqueRoomIndex}`);
+  }
 };
 
-// Function to get or create a room for the user and emit their assigned role
 const assignUserToRoom = async (socket, userId, selectedTime) => {
   const userRoomKey = `userRoom:${userId}`;
+  const roomsKey = "rooms";
+  console.log(userRoomKey);
 
   const existingRoom = await redisClient.get(userRoomKey);
+
   if (existingRoom) {
     const roomInfo = JSON.parse(existingRoom);
+    console.log(roomInfo);
+    const uniqueRoomIndex = `${roomInfo.roomIndex}-${roomInfo.time}`;
+
+    // Ensure the user is reassigned to their existing room
     socket.emit("roleAssigned", roomInfo.role);
-    return roomInfo.roomIndex;
+    return uniqueRoomIndex;
   }
 
   let roomIndex = null;
   let role = null;
   const lobby = lobbies[selectedTime];
 
+  // Find an available spot in an existing room
   for (let i = 0; i < lobby.length; i++) {
     if (!lobby[i].white) {
       lobby[i].white = userId;
@@ -119,21 +177,34 @@ const assignUserToRoom = async (socket, userId, selectedTime) => {
     }
   }
 
+  // If no spot is available, create a new room
   if (roomIndex === null) {
     roomIndex = lobby.length;
     lobby.push({ roomIndex, white: userId, black: null, game: new Chess().fen(), time: selectedTime });
+    console.log(`Created new room: ${roomIndex} in lobby for ${selectedTime} minutes`);
     role = "w";
   }
 
+  // Save user room and lobby state to Redis
+  const uniqueRoomIndex = `${roomIndex}-${selectedTime}`;
   await redisClient.set(userRoomKey, JSON.stringify({ roomIndex, role, time: selectedTime }));
-  await redisClient.set("rooms", JSON.stringify(lobbies)); // Save updated lobbies to Redis
+  await redisClient.set(roomsKey, JSON.stringify(lobbies));
+  
+  // Emit roleAssigned event to the user
   socket.emit("roleAssigned", role);
-  startTimer(roomIndex, selectedTime); // Start the timer for the new room
-  return roomIndex;
+
+  // Start the timer only when both players are present
+  const room = lobby.find(room => room.roomIndex === roomIndex);
+  if (room && room.white && room.black) {
+    startTimer(uniqueRoomIndex);
+  }
+  
+  return uniqueRoomIndex;
 };
 
 // Middleware to check authentication
 io.use(async (socket, next) => {
+  console.log(socket.id);
   cookieParser()(socket.request, socket.request.res || {}, (err) => {
     if (err) return next(err);
 
@@ -145,17 +216,23 @@ io.use(async (socket, next) => {
       socket.decoded = decoded; // Attach decoded token payload to socket object
 
       const selectedTime = parseInt(socket.handshake.query.time, 10);
-      assignUserToRoom(socket, decoded.id, selectedTime).then((roomIndex) => {
-        if (roomIndex !== undefined) {
-          socket.join(roomIndex.toString());
-          const lobby = lobbies[selectedTime];
-          const room = lobby.find(room => room.roomIndex === roomIndex);
-          console.log(`User joined room ${roomIndex}`);
-          // Emit initial game state
-          socket.emit("gameState", room.game);
-          socket.emit("players", { white: room.white, black: room.black });
-          // Notify other player in the room
-          socket.to(roomIndex.toString()).emit("players", { white: room.white, black: room.black });
+      assignUserToRoom(socket, decoded.id, selectedTime).then((uniqueRoomIndex) => {
+        if (uniqueRoomIndex !== undefined) {
+          socket.join(uniqueRoomIndex);
+          const [roomIndex, time] = uniqueRoomIndex.split('-');
+          const lobby = lobbies[time];
+          const room = lobby.find(room => room.roomIndex === parseInt(roomIndex));
+          console.log(uniqueRoomIndex);
+          if (room) {
+            console.log(`User joined room ${uniqueRoomIndex}`);
+            // Emit initial game state
+            socket.emit("gameState", room.game);
+            socket.emit("players", { white: room.white, black: room.black });
+            // Notify other player in the room
+            socket.to(uniqueRoomIndex).emit("players", { white: room.white, black: room.black });
+          } else {
+            console.error(`Room not found in assignUserToRoom: ${uniqueRoomIndex}`);
+          }
         }
       });
 
@@ -180,10 +257,9 @@ io.on("connection", (socket) => {
       return;
     }
 
-    const { roomIndex } = userRoom;
-    const selectedTime = userRoom.time;
-    const lobby = lobbies[selectedTime];
-    const room = lobby.find(room => room.roomIndex === roomIndex);
+    const uniqueRoomIndex = `${userRoom.roomIndex}-${userRoom.time}`;
+    const lobby = lobbies[userRoom.time];
+    const room = lobby.find(room => room.roomIndex === userRoom.roomIndex);
 
     if (room) {
       const game = new Chess(room.game);
@@ -191,8 +267,12 @@ io.on("connection", (socket) => {
 
       if (result) {
         // Update timer
-        const timer = gameTimers[roomIndex];
-        timer.currentPlayer = timer.currentPlayer === "w" ? "b" : "w";
+        const timer = gameTimers[uniqueRoomIndex];
+        if (timer) {
+          timer.currentPlayer = timer.currentPlayer === "w" ? "b" : "w";
+        } else {
+          console.error(`Timer not found in move handler: ${uniqueRoomIndex}`);
+        }
 
         // Check for game-ending conditions
         let gameOver = false;
@@ -224,22 +304,24 @@ io.on("connection", (socket) => {
         await redisClient.set("rooms", JSON.stringify(lobbies)); // Save updated lobbies to Redis
 
         // Emit updated game state to both players in the room
-        io.to(roomIndex.toString()).emit("gameState", game.fen());
+        io.to(uniqueRoomIndex).emit("gameState", game.fen());
 
         if (gameOver) {
-          io.to(roomIndex.toString()).emit("gameOver", gameOverMessage);
+          io.to(uniqueRoomIndex).emit("gameOver", gameOverMessage);
           // Save game result and remove the room from Redis
           const gameState = JSON.stringify(game.history({ verbose: true }));
-          saveGameResult(room.white, room.black, winner, loser, gameState, (err) => {
+          saveGameResult(room.white, room.black, winner, loser, gameState, async (err) => {
             if (!err) {
-              redisClient.del(userRoomKey);
+              await redisClient.del(userRoomKey);
             }
           });
-          endGame(roomIndex, winner, gameOverMessage);
+          endGame(uniqueRoomIndex, winner, gameOverMessage);
         }
       } else {
         socket.emit("invalidMove", "Invalid move");
       }
+    } else {
+      console.error(`Room not found in move: ${uniqueRoomIndex}`);
     }
   });
 
@@ -254,33 +336,34 @@ io.on("connection", (socket) => {
       return;
     }
 
-    const { roomIndex } = userRoom;
-    const selectedTime = userRoom.time;
-    const lobby = lobbies[selectedTime];
+    const uniqueRoomIndex = `${userRoom.roomIndex}-${userRoom.time}`;
+    const lobby = lobbies[userRoom.time];
+    const room = lobby.find(room => room.roomIndex === userRoom.roomIndex);
 
-    const room = lobby.find(room => room.roomIndex === roomIndex);
-
-    if (room.white === userId) {
-      room.white = null;
-      console.log(`User ${userId} left room ${roomIndex} (was white)`);
-    } else if (room.black === userId) {
-      room.black = null;
-      console.log(`User ${userId} left room ${roomIndex} (was black)`);
-    }
-
-    // Optionally remove empty rooms after 20 seconds if still empty
-    setTimeout(async () => {
-      const updatedRoom = lobby.find(room => room.roomIndex === roomIndex);
-      if (!updatedRoom.white && !updatedRoom.black) {
-        const roomIndexInLobby = lobby.findIndex(room => room.roomIndex === roomIndex);
-        lobby.splice(roomIndexInLobby, 1);
-        console.log(`Room ${roomIndex} removed after 20 seconds of being empty`);
-        await redisClient.set("rooms", JSON.stringify(lobbies)); // Save updated lobbies to Redis
+    if (room) {
+      if (room.white === userId) {
+        room.white = null;
+        console.log(`User ${userId} left room ${uniqueRoomIndex} (was white)`);
+      } else if (room.black === userId) {
+        room.black = null;
+        console.log(`User ${userId} left room ${uniqueRoomIndex} (was black)`);
       }
-    }, 20000);
 
-    await redisClient.set("rooms", JSON.stringify(lobbies)); // Save updated lobbies to Redis
-    await redisClient.del(userRoomKey);
+      // Optionally remove empty rooms
+      if (!room.white && !room.black) {
+        const roomIndexInLobby = lobby.findIndex(room => room.roomIndex === userRoom.roomIndex);
+        lobby.splice(roomIndexInLobby, 1);
+        console.log(`Room ${uniqueRoomIndex} removed because it is empty`);
+      }
+
+      await redisClient.set("rooms", JSON.stringify(lobbies)); // Save updated lobbies to Redis
+      await redisClient.del(userRoomKey);
+
+      // Make the user leave the socket.io room
+      socket.leave(uniqueRoomIndex);
+    } else {
+      console.error(`Room not found in disconnect: ${uniqueRoomIndex}`);
+    }
   });
 });
 
