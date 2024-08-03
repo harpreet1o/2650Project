@@ -11,6 +11,7 @@ import config from './config.js';
 import sqlite3 from 'sqlite3';
 import authRoutes from './routes/auth.js';
 
+
 const secretKeyJWT = "asdasdsadasdasdasdsa";
 const port = 3000;
 

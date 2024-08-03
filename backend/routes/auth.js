@@ -166,6 +166,101 @@ router.get('/current_user', authenticateJWT, (req, res) => {
     }
     res.json({ username: user.name });
   });
+
 });
+
+router.get('/user/profile', authenticateJWT, (req, res) => {
+  try {
+    findUserById(req.user.id, (err, user) => {
+      if (err) {
+        return res.status(500).json({ message: 'Internal server error.' });
+      }
+      if (!user) {
+        return res.status(404).json({ message: 'User not found.' });
+      };
+      res.json(user);
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error });
+  }
+});
+
+router.get('/user/games', authenticateJWT, (req, res) => {
+  res.status(200).json([
+    {
+        id: 1,
+        white_player: 'Player1',
+        black_player: 'Player2',
+        winner: 'Player1',
+        loser: 'Player2',
+        game_state: [
+            { from: 'e2', to: 'e4' },
+            { from: 'e7', to: 'e5' },
+            { from: 'g1', to: 'f3' },
+            { from: 'b8', to: 'c6' },
+            { from: 'f1', to: 'b5' },
+            { from: 'a7', to: 'a6' },
+            { from: 'b5', to: 'a4' },
+            { from: 'g8', to: 'f6' }
+        ],
+        timestamp: '2023-07-22T12:30:00Z'
+    },
+    {
+        id: 2,
+        white_player: 'Player3',
+        black_player: 'Player4',
+        winner: 'Player4',
+        loser: 'Player3',
+        game_state: [
+            { from: 'd2', to: 'd4' },
+            { from: 'd7', to: 'd5' },
+            { from: 'c2', to: 'c4' },
+            { from: 'e7', to: 'e6' },
+            { from: 'g1', to: 'f3' },
+            { from: 'g8', to: 'f6' },
+            { from: 'b1', to: 'c3' },
+            { from: 'c7', to: 'c6' }
+        ],
+        timestamp: '2023-07-23T14:30:00Z'
+    },
+    {
+        id: 3,
+        white_player: 'Player1',
+        black_player: 'Player3',
+        winner: 'Player1',
+        loser: 'Player3',
+        game_state: [
+            { from: 'e2', to: 'e4' },
+            { from: 'e7', to: 'e6' },
+            { from: 'd2', to: 'd4' },
+            { from: 'd7', to: 'd5' },
+            { from: 'b1', to: 'c3' },
+            { from: 'd5', to: 'e4' },
+            { from: 'c3', to: 'e4' },
+            { from: 'g8', to: 'f6' }
+        ],
+        timestamp: '2023-07-24T16:00:00Z'
+    },
+    {
+        id: 4,
+        white_player: 'Player2',
+        black_player: 'Player4',
+        winner: 'Player2',
+        loser: 'Player4',
+        game_state: [
+            { from: 'e2', to: 'e4' },
+            { from: 'c7', to: 'c5' },
+            { from: 'g1', to: 'f3' },
+            { from: 'd7', to: 'd6' },
+            { from: 'd2', to: 'd4' },
+            { from: 'c5', to: 'd4' },
+            { from: 'f3', to: 'd4' },
+            { from: 'g8', to: 'f6' }
+        ],
+        timestamp: '2023-07-25T18:45:00Z'
+    }
+])
+})
 
 export default router;

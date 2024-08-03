@@ -21,6 +21,9 @@ const Navbar = () => {
         <h1 className="text-xl font-bold">
           <Link to="/">Chess App</Link>
         </h1>
+        <Link to="/">Home</Link>
+
+        <Link to="/profile">Profile</Link>
         <div>
           {user ? (
             <>
