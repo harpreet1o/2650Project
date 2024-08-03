@@ -5,8 +5,10 @@ import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { createUser, findUserByEmail, matchPassword, findUserById } from '../models/User.js';
+import dotenv from 'dotenv';
 
-const secretKeyJWT = 'harganga'
+
+const secretKeyJWT="harganga";
 
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
@@ -152,8 +154,9 @@ router.get('/oauth2/redirect/google', passport.authenticate('google', {
 
 router.post('/logout', (req, res) => {
 
-  res.clearCookie('token', { httpOnly: true, secure: true, sameSite: "none" });
-  res.json(200)
+  res.clearCookie('token');
+  res.json({message:"removed succesfully"});
+
 });
 
 // Route to get current user
