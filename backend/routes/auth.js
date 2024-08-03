@@ -96,7 +96,7 @@ router.post('/register', (req, res) => {
       }
       const token = generateToken(user.id);
       res.cookie('token', token, { httpOnly: true, secure: true, sameSite: "none" });
-      res.status(201).json({ user, token });
+      res.status(201).json({ message:"created succesfully"});
     });
   });
 });

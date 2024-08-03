@@ -14,6 +14,12 @@ const db = new sqlite3.Database('./database.sqlite', (err) => {
       name TEXT,
       password TEXT
     )`);
+    db.run(`CREATE TABLE IF NOT EXISTS game_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      winner TEXT,
+      loser TEXT,
+      game_state TEXT
+    )`);
   }
 });
 
