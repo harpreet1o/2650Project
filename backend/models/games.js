@@ -58,4 +58,16 @@ const getGameHistoryById = (id, cb) => {
   });
 };
 
-export { db, saveGameResult, getAllGameHistories, getGameHistoryById };
+
+const getGamesByUserId = (userId, cb) => {
+  db.all('SELECT * FROM game_history WHERE white_player = ? OR black_player = ?', [userId, userId], (err, rows) => {
+    if (err) {
+      console.error('Error fetching games for user:', err.message);
+      cb(err, null);
+    } else {
+      cb(null, rows);
+    }
+  });
+};
+
+export { db, saveGameResult, getAllGameHistories, getGameHistoryById, getGamesByUserId };
