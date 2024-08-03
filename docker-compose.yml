@@ -1,30 +1,32 @@
-version: '3'
+version: '3.8'
 
 services:
   frontend:
-    build:
-      context: ./frontend
+    build: ./frontend
     ports:
       - "80:80"
-    depends_on:
-      - backend
+    environment:
+      - NODE_ENV=production
 
   backend:
-    build:
-      context: ./backend
+    build: ./backend
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=development
       - PORT=3000
-      - MONGO_URI=mongodb://mongo:27017/your_db_name
-      - REDIS_URL=redis://redis:6379
+      
     depends_on:
-      - mongo
       - redis
-
+      - frontend
+    volumes:
+      - ./backend:/app
+      - sqlite-data:/data
+    command: ["npm", "start"]
 
   redis:
-    image: redis
+    image: "redis:latest"
     ports:
       - "6379:6379"
+
+volumes:
+  sqlite-data:

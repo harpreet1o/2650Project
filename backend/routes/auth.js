@@ -5,12 +5,12 @@ import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { createUser, findUserByEmail, matchPassword, findUserById } from '../models/User.js';
-import dotenv from 'dotenv';
+import config from '../config.js';
 
-const secretKeyJWT="harganga";
+const secretKeyJWT=config.secretKeyJWT;
 passport.use(new GoogleStrategy({
-  clientID: process.env.GOOGLE_CLIENT_ID,
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  clientID: config.googleClientId,
+  clientSecret: config.googleClientSecret,
   callbackURL: 'http://localhost:3000/oauth2/redirect/google', // Ensure this matches your route
   scope: ['profile', 'email', 'openid']
 }, (accessToken, refreshToken, profile, cb) => {

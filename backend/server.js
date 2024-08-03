@@ -12,8 +12,8 @@ import sqlite3 from 'sqlite3';
 import authRoutes from './routes/auth.js';
 import { saveGameResult } from "./models/games.js";
 
-const secretKeyJWT = "harganga";
-const port = 3000;
+const secretKeyJWT = config.secretKeyJWT;
+const port = config.port;
 
 const app = express();
 const server = createServer(app);
@@ -24,6 +24,7 @@ const io = new Server(server, {
     credentials: true,
   },
 });
+
 const redisClient = createClient();
 
 redisClient.on("error", (error) => console.error(`Error: ${error}`));
@@ -33,7 +34,7 @@ const clearAllRedisKeys = async () => {
     await redisClient.sendCommand(['FLUSHDB']);
     console.log('All Redis keys cleared successfully.');
   } catch (error) {
-    console.error(`Error clearing Redis keys: ${error}`);
+    console.error(error);
   }
 };
 
@@ -42,10 +43,6 @@ const clearAllRedisKeys = async () => {
   await clearAllRedisKeys();
   console.log('Redis client connected successfully.');
 })();
-
-
-
-
 
 app.use(
   cors({
@@ -140,7 +137,6 @@ const endGame = async (uniqueRoomIndex, winnerColor, reason) => {
     console.error(`Room not found in endGame: ${uniqueRoomIndex}`);
   }
 };
-
 const assignUserToRoom = async (socket, userId, selectedTime) => {
   const userRoomKey = `userRoom:${userId}`;
   const roomsKey = "rooms";
@@ -192,12 +188,6 @@ const assignUserToRoom = async (socket, userId, selectedTime) => {
   
   // Emit roleAssigned event to the user
   socket.emit("roleAssigned", role);
-
-  // Start the timer only when both players are present
-  const room = lobby.find(room => room.roomIndex === roomIndex);
-  if (room && room.white && room.black) {
-    startTimer(uniqueRoomIndex);
-  }
   
   return uniqueRoomIndex;
 };
@@ -230,6 +220,7 @@ io.use(async (socket, next) => {
             socket.emit("players", { white: room.white, black: room.black });
             // Notify other player in the room
             socket.to(uniqueRoomIndex).emit("players", { white: room.white, black: room.black });
+            startTimer(uniqueRoomIndex); // Start the timer
           } else {
             console.error(`Room not found in assignUserToRoom: ${uniqueRoomIndex}`);
           }
