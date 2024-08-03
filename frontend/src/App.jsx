@@ -5,6 +5,8 @@ import Register from './components/Register';
 import ChessBoard from './ChessBoard';
 import Navbar from './components/Navbar';
 import Home from './Home';
+import ProfilePage from './pages/ProfilePage';
+import GameDetail from './components/GameDetail';
 
 
 export default function App() {
@@ -16,6 +18,9 @@ export default function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/" element={<Home/>} />
         <Route path="/chessboard" element={<ChessBoard />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/game/:id" element={<GameDetail />} />
+
       </Routes>
     </Router>
   )

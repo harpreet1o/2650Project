@@ -149,10 +149,8 @@ export default function ChessBoard() {
               <span
                 className={`text-2xl ${square && square.color === "w" ? "text-white" : "text-black"}`}
               >
-                 {(() => {
-    console.log(square);
-    return getPieceUnicode(square);
-  })()}
+                 {getPieceUnicode(square
+                 )}
               </span>
             </div>
           ))
