@@ -17,7 +17,7 @@ services:
       - redis
     volumes:
       - ./backend:/app
-    command: ["wait-for-redis.sh", "redis", "npm", "start"]
+    command: [ "npm", "start"]
 
   frontend:
     build:
