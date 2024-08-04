@@ -11,6 +11,8 @@ import config from './config.js';
 import sqlite3 from 'sqlite3';
 import authRoutes from './routes/auth.js';
 import { saveGameResult } from "./models/games.js";
+import { findUserById } from "./models/User.js";
+
 
 const secretKeyJWT = config.secretKeyJWT;
 const port = config.port;
@@ -70,12 +72,14 @@ const startTimer = (uniqueRoomIndex) => {
       console.error(`Room not found in startTimer: ${uniqueRoomIndex}`);
       return;
     }
-    gameTimers[uniqueRoomIndex] = {
-      whiteTime: room.time * 60, // Convert minutes to seconds
-      blackTime: room.time * 60,
-      currentPlayer: "w",
-      intervalId: setInterval(() => updateTimer(uniqueRoomIndex), 1000),
-    };
+    if (room.white && room.black) { // Check if both players are connected
+      gameTimers[uniqueRoomIndex] = {
+        whiteTime: room.time * 60, // Convert minutes to seconds
+        blackTime: room.time * 60,
+        currentPlayer: "w",
+        intervalId: setInterval(() => updateTimer(uniqueRoomIndex), 1000),
+      };
+    }
   }
 };
 
@@ -138,6 +142,10 @@ const endGame = async (uniqueRoomIndex, winnerColor, reason) => {
   }
 };
 const assignUserToRoom = async (socket, userId, selectedTime) => {
+
+  const userName = socket.handshake.query.username;
+  console.log("username", userName)
+
   const userRoomKey = `userRoom:${userId}`;
   const roomsKey = "rooms";
   console.log(userRoomKey);
@@ -151,6 +159,7 @@ const assignUserToRoom = async (socket, userId, selectedTime) => {
 
     // Ensure the user is reassigned to their existing room
     socket.emit("roleAssigned", roomInfo.role);
+
     return uniqueRoomIndex;
   }
 
@@ -181,14 +190,37 @@ const assignUserToRoom = async (socket, userId, selectedTime) => {
     role = "w";
   }
 
+  const room = lobby[roomIndex];
+
+  console.log("testing for name", userName)
+
   // Save user room and lobby state to Redis
   const uniqueRoomIndex = `${roomIndex}-${selectedTime}`;
   await redisClient.set(userRoomKey, JSON.stringify({ roomIndex, role, time: selectedTime }));
   await redisClient.set(roomsKey, JSON.stringify(lobbies));
+
+
+  // Store user name in the room object
+  if (role === "w") {
+    room.whiteUserName = userName;
+    room.whiteSocketId = socket.id;
+  } else {
+    room.blackUserName = userName;
+    room.blackSocketId = socket.id;
+  }
   
   // Emit roleAssigned event to the user
-  socket.emit("roleAssigned", role);
+  socket.emit("roleAssigned", { role, userName, socketId: socket.id });
+
+  io.to(uniqueRoomIndex).emit("players", {
+    white: room.white ? { userName: room.whiteUserName, socketId: room.whiteSocketId } : null,
+    black: room.black ? { userName: room.blackUserName, socketId: room.blackSocketId } : null,
+  });
   
+  if (room.white && room.black) {
+    startTimer(uniqueRoomIndex);
+  }
+
   return uniqueRoomIndex;
 };
 
@@ -217,10 +249,16 @@ io.use(async (socket, next) => {
             console.log(`User joined room ${uniqueRoomIndex}`);
             // Emit initial game state
             socket.emit("gameState", room.game);
-            socket.emit("players", { white: room.white, black: room.black });
+            socket.emit("players", { 
+              white: room.white ? { userName: room.whiteUserName, socketId: room.whiteSocketId } : null,
+              black: room.black ? { userName: room.blackUserName, socketId: room.blackSocketId } : null,
+            });
             // Notify other player in the room
-            socket.to(uniqueRoomIndex).emit("players", { white: room.white, black: room.black });
-            startTimer(uniqueRoomIndex); // Start the timer
+            socket.to(uniqueRoomIndex).emit("players", {
+              white: room.white ? { userName: room.whiteUserName, socketId: room.whiteSocketId } : null,
+              black: room.black ? { userName: room.blackUserName, socketId: room.blackSocketId } : null,
+            });
+            // startTimer(uniqueRoomIndex); // Start the timer
           } else {
             console.error(`Room not found in assignUserToRoom: ${uniqueRoomIndex}`);
           }
@@ -236,6 +274,12 @@ io.use(async (socket, next) => {
 
 io.on("connection", (socket) => {
   console.log("connected");
+
+  // username event
+  socket.on('username', (username) => {
+    console.log('username:', username);
+    socket.data.username = username;
+});
 
   // Handle incoming moves
   socket.on("move", async (move) => {
