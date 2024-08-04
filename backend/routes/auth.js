@@ -5,9 +5,11 @@ import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { createUser, findUserByEmail, matchPassword, findUserById } from '../models/User.js';
+import { getGamesByUserId } from '../models/games.js';
 import config from '../config.js';
 
 const secretKeyJWT=config.secretKeyJWT;
+
 passport.use(new GoogleStrategy({
   clientID: config.googleClientId,
   clientSecret: config.googleClientSecret,
@@ -96,7 +98,7 @@ router.post('/register', (req, res) => {
       }
       const token = generateToken(user.id);
       res.cookie('token', token, { httpOnly: true, secure: true, sameSite: "none" });
-      res.status(201).json({ message:"created succesfully"});
+      res.status(201).json({ message: "created succesfully" });
     });
   });
 });
@@ -151,8 +153,10 @@ router.get('/oauth2/redirect/google', passport.authenticate('google', {
 });
 
 router.post('/logout', (req, res) => {
+
   res.clearCookie('token');
   res.json({message:"removed succesfully"});
+
 });
 
 // Route to get current user
@@ -166,6 +170,37 @@ router.get('/current_user', authenticateJWT, (req, res) => {
     }
     res.json({ username: user.name });
   });
+
 });
+
+router.get('/user/profile', authenticateJWT, (req, res) => {
+  try {
+    findUserById(req.user.id, (err, user) => {
+      if (err) {
+        return res.status(500).json({ message: 'Internal server error.' });
+      }
+      if (!user) {
+        return res.status(404).json({ message: 'User not found.' });
+      };
+      res.json(user);
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error });
+  }
+});
+
+router.get('/user/games', authenticateJWT, (req, res) => {
+  try {
+    getGamesByUserId(req.user.id, (err, games) => {
+      if (err) {
+        return res.status(500).json({ message: 'Internal server error.' });
+      }
+      res.json(games);
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error });
+  }
+})
 
 export default router;

@@ -9,9 +9,9 @@ const Navbar = () => {
 
   const handleLogout = async () => {
     try {
-      await axios.post('http://localhost:3000/logout', {}, { withCredentials: true });
+      await axios.post('http://localhost:3000/logout', { withCredentials: true });
       setUser(null);
-      navigate('/');
+      navigate('/login');
     } catch (err) {
       console.error('Error during logout:', err);
     }
@@ -23,6 +23,9 @@ const Navbar = () => {
         <h1 className="text-2xl font-bold">
           <Link to="/" className="hover:text-gray-200">Chess App</Link>
         </h1>
+        <Link to="/">Home</Link>
+
+        <Link to="/profile">Profile</Link>
         <div>
           {user ? (
             <div className="flex items-center">
