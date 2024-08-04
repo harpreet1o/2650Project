@@ -27,7 +27,6 @@
     DATABASE_SERVER= project2650.database.windows.net
 
      DATABASE_TRUST_SERVER_CERTIFICATE=no
-
  ```
 
   ```console
@@ -37,7 +36,7 @@
   ```
 
 - Go to http://localhost
-- 
+   
 ## Features
 
 - _Frontend_ written in React
