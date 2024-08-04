@@ -62,7 +62,6 @@ const getGameHistoryById = async (id, cb) => {
   }
 };
 
-
 const getGamesByUserId = async (userId, cb) => {
   try {
     const pool = await poolPromise;

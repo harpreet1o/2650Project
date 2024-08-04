@@ -18,10 +18,11 @@ const GameDetail = () => {
     }, [game, chess, selectedMoveIndex]);
 
     const updateBoard = (moveIndex) => {
+        chess.reset();
         const gameState = JSON.parse(game.game_state);
-        chess.load(gameState[moveIndex].before);
         for (let i = 0; i <= moveIndex; i++) {
-            chess.move(gameState[i].san);
+            const move = gameState[i];
+            chess.move({ from: move.from, to: move.to, promotion: 'q' }); // Ensure to include promotion if necessary
         }
         setBoard(chess.board());
     };
@@ -86,7 +87,7 @@ const GameDetail = () => {
                         onClick={() => handleMoveClick(index)}
                         className={`p-2 border rounded ${selectedMoveIndex === index ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
                     >
-                        Move {index + 1}: {move.from} to {move.to}r
+                        Move {index + 1}: {move.from} to {move.to}
                     </button>
                 ))}
             </div>

@@ -48,7 +48,7 @@ const Games = () => {
         <div className="container mx-auto mt-8">
             <h1 className="text-3xl font-bold mb-6 text-center">Games Played</h1>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {games.map((game) => (
+                {games.filter(game => JSON.parse(game.game_state).length > 0).map((game) => (
                     <div
                         key={game.id}
                         onClick={() => handleGameClick(game)}

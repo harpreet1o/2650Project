@@ -9,6 +9,7 @@ import { createClient } from "redis";
 import config from './config.js';
 import sql from 'mssql';
 import authRoutes from './routes/auth.js';
+
 import { saveGameResult as saveAzureGameResult } from "./models/games.js"; // Assume you have a similar Azure implementation
 
 const secretKeyJWT = config.secretKeyJWT;
@@ -99,12 +100,14 @@ const startTimer = (uniqueRoomIndex) => {
       console.error(`Room not found in startTimer: ${uniqueRoomIndex}`);
       return;
     }
-    gameTimers[uniqueRoomIndex] = {
-      whiteTime: room.time * 60, // Convert minutes to seconds
-      blackTime: room.time * 60,
-      currentPlayer: "w",
-      intervalId: setInterval(() => updateTimer(uniqueRoomIndex), 1000),
-    };
+    if (room.white && room.black) { // Check if both players are connected
+      gameTimers[uniqueRoomIndex] = {
+        whiteTime: room.time * 60, // Convert minutes to seconds
+        blackTime: room.time * 60,
+        currentPlayer: "w",
+        intervalId: setInterval(() => updateTimer(uniqueRoomIndex), 1000),
+      };
+    }
   }
 };
 
@@ -168,6 +171,10 @@ const endGame = async (uniqueRoomIndex, winnerColor, reason) => {
 };
 
 const assignUserToRoom = async (socket, userId, selectedTime) => {
+
+  const userName = socket.handshake.query.username;
+  console.log("username", userName)
+
   const userRoomKey = `userRoom:${userId}`;
   const roomsKey = "rooms";
   console.log(userRoomKey);
@@ -181,6 +188,7 @@ const assignUserToRoom = async (socket, userId, selectedTime) => {
 
     // Ensure the user is reassigned to their existing room
     socket.emit("roleAssigned", roomInfo.role);
+
     return uniqueRoomIndex;
   }
 
@@ -211,14 +219,37 @@ const assignUserToRoom = async (socket, userId, selectedTime) => {
     role = "w";
   }
 
+  const room = lobby[roomIndex];
+
+  console.log("testing for name", userName)
+
   // Save user room and lobby state to Redis
   const uniqueRoomIndex = `${roomIndex}-${selectedTime}`;
   await redisClient.set(userRoomKey, JSON.stringify({ roomIndex, role, time: selectedTime }));
   await redisClient.set(roomsKey, JSON.stringify(lobbies));
+
+
+  // Store user name in the room object
+  if (role === "w") {
+    room.whiteUserName = userName;
+    room.whiteSocketId = socket.id;
+  } else {
+    room.blackUserName = userName;
+    room.blackSocketId = socket.id;
+  }
   
   // Emit roleAssigned event to the user
-  socket.emit("roleAssigned", role);
+  socket.emit("roleAssigned", { role, userName, socketId: socket.id });
+
+  io.to(uniqueRoomIndex).emit("players", {
+    white: room.white ? { userName: room.whiteUserName, socketId: room.whiteSocketId } : null,
+    black: room.black ? { userName: room.blackUserName, socketId: room.blackSocketId } : null,
+  });
   
+  if (room.white && room.black) {
+    startTimer(uniqueRoomIndex);
+  }
+
   return uniqueRoomIndex;
 };
 
@@ -247,10 +278,16 @@ io.use(async (socket, next) => {
             console.log(`User joined room ${uniqueRoomIndex}`);
             // Emit initial game state
             socket.emit("gameState", room.game);
-            socket.emit("players", { white: room.white, black: room.black });
+            socket.emit("players", { 
+              white: room.white ? { userName: room.whiteUserName, socketId: room.whiteSocketId } : null,
+              black: room.black ? { userName: room.blackUserName, socketId: room.blackSocketId } : null,
+            });
             // Notify other player in the room
-            socket.to(uniqueRoomIndex).emit("players", { white: room.white, black: room.black });
-            startTimer(uniqueRoomIndex); // Start the timer
+            socket.to(uniqueRoomIndex).emit("players", {
+              white: room.white ? { userName: room.whiteUserName, socketId: room.whiteSocketId } : null,
+              black: room.black ? { userName: room.blackUserName, socketId: room.blackSocketId } : null,
+            });
+            // startTimer(uniqueRoomIndex); // Start the timer
           } else {
             console.error(`Room not found in assignUserToRoom: ${uniqueRoomIndex}`);
           }
@@ -266,6 +303,12 @@ io.use(async (socket, next) => {
 
 io.on("connection", (socket) => {
   console.log("connected");
+
+  // username event
+  socket.on('username', (username) => {
+    console.log('username:', username);
+    socket.data.username = username;
+});
 
   // Handle incoming moves
   socket.on("move", async (move) => {
@@ -287,7 +330,13 @@ io.on("connection", (socket) => {
       const result = game.move(move);
 
       if (result) {
-        // Update timer
+        // history
+        if (!room.history) {
+          room.history = [];
+        }
+        room.history.push(game.history({verbose: true})[0]);
+  
+        // Update timerd
         const timer = gameTimers[uniqueRoomIndex];
         if (timer) {
           timer.currentPlayer = timer.currentPlayer === "w" ? "b" : "w";
@@ -330,8 +379,11 @@ io.on("connection", (socket) => {
         if (gameOver) {
           io.to(uniqueRoomIndex).emit("gameOver", gameOverMessage);
           // Save game result and remove the room from Redis
-          const gameState = JSON.stringify(game.history({ verbose: true }));
+
+          const gameState = JSON.stringify(room.history);
+          
           saveAzureGameResult(room.white, room.black, winner, loser, gameState, async (err) => {
+
             if (!err) {
               await redisClient.del(userRoomKey);
             }
@@ -343,6 +395,30 @@ io.on("connection", (socket) => {
       }
     } else {
       console.error(`Room not found in move: ${uniqueRoomIndex}`);
+    }
+  });
+
+   // Handle resign event
+   socket.on('resign', async () => {
+    const userId = socket.decoded.id;
+    const userRoomKey = `userRoom:${userId}`;
+    const userRoom = JSON.parse(await redisClient.get(userRoomKey));
+
+    if (!userRoom) {
+      console.log(`User room not found for user: ${userId}`);
+      return;
+    }
+
+    const uniqueRoomIndex = `${userRoom.roomIndex}-${userRoom.time}`;
+    const lobby = lobbies[userRoom.time];
+    const room = lobby.find(room => room.roomIndex === userRoom.roomIndex);
+
+    if (room) {
+      const winnerColor = userRoom.role === "w" ? "b" : "w";
+      const reason = `Player ${userRoom.role === "w" ? "White" : "Black"} resigned`;
+      endGame(uniqueRoomIndex, winnerColor, reason);
+    } else {
+      console.error(`Room not found in resign: ${uniqueRoomIndex}`);
     }
   });
 
