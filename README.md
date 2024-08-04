@@ -5,7 +5,7 @@
   
     Get the env variable in backend folder(Sent to you by mail)
   
-    Here are somevariable examples
+    Here are variable examples
   
     ```console
     PORT=3000
