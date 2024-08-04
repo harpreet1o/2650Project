@@ -15,6 +15,14 @@
   ```
 
 - Go to http://localhost
+- 
+## Features
+
+- _Frontend_ written in React
+- _Backend_ written in React
+- _Database used_ MySQL
+- In-memory database _Redis_ to the Backend
+- _oAuth_ Google authenication
 
    
 ## Whats is not working: 
