@@ -1,11 +1,20 @@
 # Project: ChessGame 
 ## Step to run the app locally use following commands:
 
-1. cd/backend --> npm start --> nodemon server.js
-   
-2. cd/frontend--> npm i --> npm run dev
+- Please make sure docker engine install in the system; go throuh official documentation: [https://docs.docker.com/engine/install/]
 
-3. Add .env file in backend (sent by mail)
+- Also installed docker-compose in the system; Go throuh official documentation: [https://docs.docker.com/compose/install/]
+
+- Run with Docker Compose
+
+  ```console
+  $ docker-compose up -d
+  $ docker-compose ps
+  # To stop the containers
+  $ docker-compose down
+  ```
+
+- Go to http://localhost
 
    
 ## Whats is not working: 
