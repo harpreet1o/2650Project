@@ -1,48 +1,75 @@
-// models/User.js
-import sqlite3 from 'sqlite3';
+import sql from 'mssql';
 import bcrypt from 'bcryptjs';
+import config from '../config.js';
 
-// Initialize SQLite database
-const db = new sqlite3.Database('./database.sqlite', (err) => {
-  if (err) {
-    console.error('Error opening database:', err.message);
-  } else {
-    console.log('Connected to SQLite database.');
-    db.run(`CREATE TABLE IF NOT EXISTS user (
-      id TEXT PRIMARY KEY,
-      email TEXT UNIQUE,
-      name TEXT,
-      password TEXT
-    )`);
-    
-  }
-});
-
-const findUserById = (id, cb) => {
-  db.get('SELECT id, name, email FROM user WHERE id = ?', [id], (err, row) => {
-    cb(err, row);
-  });
+const dbConfig = {
+  user: config.databaseUser,
+  password: config.databasePassword,
+  server: config.databaseServer,
+  database: config.databaseName,
+  options: {
+    encrypt: true, // for Azure SQL Database
+    trustServerCertificate: config.databaseTrustServerCertificate === 'yes',
+  },
+  connectionTimeout: parseInt(config.databaseConnectionTimeout, 10)
 };
 
-const createUser = ({ id, email, name, password }, cb) => {
+// Initialize Azure SQL Database connection
+const poolPromise = sql.connect(dbConfig).then(pool => {
+  console.log('Connected to Azure SQL Database');
+  return pool;
+}).catch(err => {
+  console.error('Database connection failed: ', err);
+});
+
+// Function to find user by ID
+const findUserById = async (id, cb) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('id', sql.VarChar, id)
+      .query('SELECT id, name, email FROM [user] WHERE id = @id');
+    cb(null, result.recordset[0]);
+  } catch (err) {
+    cb(err, null);
+  }
+};
+
+// Function to create a new user
+const createUser = async ({ id, email, name, password }, cb) => {
   let hashedPassword = null;
   if (password) {
     const salt = bcrypt.genSaltSync(10);
     hashedPassword = bcrypt.hashSync(password, salt);
   }
-  db.run(
-    'INSERT INTO user (id, email, name, password) VALUES (?, ?, ?, ?)',
-    [id, email, name, hashedPassword],
-    function (err) {
-      cb(err, { id, email, name });
-    }
-  );
+  try {
+    const pool = await poolPromise;
+    await pool.request()
+      .input('id', sql.VarChar, id)
+      .input('email', sql.VarChar, email)
+      .input('name', sql.VarChar, name)
+      .input('password', sql.VarChar, hashedPassword)
+      .query('INSERT INTO [user] (id, email, name, password) VALUES (@id, @email, @name, @password)');
+    cb(null, { id, email, name });
+  } catch (err) {
+    cb(err, null);
+  }
 };
-const findUserByEmail = (email, cb) => {
-  db.get('SELECT id, name, email, password FROM user WHERE email = ?', [email], (err, row) => {
-    cb(err, row);
-  });
+
+// Function to find user by email
+const findUserByEmail = async (email, cb) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('email', sql.VarChar, email)
+      .query('SELECT id, name, email, password FROM [user] WHERE email = @email');
+    cb(null, result.recordset[0]);
+  } catch (err) {
+    cb(err, null);
+  }
 };
+
+// Function to compare passwords
 const matchPassword = (password, hash) => bcrypt.compareSync(password, hash);
 
-export { db, findUserById, createUser,findUserByEmail,matchPassword };
+export { findUserById, createUser, findUserByEmail, matchPassword };

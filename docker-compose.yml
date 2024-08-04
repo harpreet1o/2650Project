@@ -1,32 +1,28 @@
 version: '3.8'
 
 services:
-  frontend:
-    build: ./frontend
-    ports:
-      - "80:80"
-    environment:
-      - NODE_ENV=production
-
-  backend:
-    build: ./backend
-    ports:
-      - "3000:3000"
-    environment:
-      - PORT=3000
-      
-    depends_on:
-      - redis
-      - frontend
-    volumes:
-      - ./backend:/app
-      - sqlite-data:/data
-    command: ["npm", "start"]
-
   redis:
     image: "redis:latest"
     ports:
       - "6379:6379"
 
-volumes:
-  sqlite-data:
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - redis
+    volumes:
+      - ./backend:/app
+    command: [ "npm", "start"]
+
+  frontend:
+    build:
+      context: ./frontend # Assuming your Vite React app is in ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend

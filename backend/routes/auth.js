@@ -133,7 +133,7 @@ router.get('/login/federated/google', (req, res, next) => {
           return res.status(500).json({ message: 'Internal server error.' });
         }
         if (user) {
-          res.redirect(`http://localhost:5173`);
+          res.redirect(`http://localhost:80`);
         }
         return next();
       });
@@ -145,11 +145,11 @@ router.get('/login/federated/google', (req, res, next) => {
 
 router.get('/oauth2/redirect/google', passport.authenticate('google', {
   session: false,
-  failureRedirect: 'http://localhost:5173/login'
+  failureRedirect: 'http://localhost:80/login'
 }), (req, res) => {
   const token = generateToken(req.user.id);
   res.cookie('token', token, { httpOnly: true, secure: true, sameSite: "none" });
-  res.redirect(`http://localhost:5173`);
+  res.redirect(`http://localhost:80`);
 });
 
 router.post('/logout', (req, res) => {
