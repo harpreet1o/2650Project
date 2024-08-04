@@ -30,3 +30,7 @@
 We need to purchase domain  name for google authenication ,so google authentication is not avaiable for pulic hosting.However, it is working fine locally.
 
 ## Public URL
+
+## Complete Project Screenshot
+
+![Project Diagram](https://github.com/harpreet1o/2650Project/blob/main/FinalProjectDiagram.drawio.png)
