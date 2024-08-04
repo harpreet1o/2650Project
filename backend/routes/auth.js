@@ -133,7 +133,7 @@ router.get('/login/federated/google', (req, res, next) => {
           return res.status(500).json({ message: 'Internal server error.' });
         }
         if (user) {
-          res.redirect(`http://localhost:80`);
+          res.redirect(`http://localhost`);
         }
         return next();
       });
@@ -145,11 +145,11 @@ router.get('/login/federated/google', (req, res, next) => {
 
 router.get('/oauth2/redirect/google', passport.authenticate('google', {
   session: false,
-  failureRedirect: 'http://localhost:80/login'
+  failureRedirect: 'http://localhost/login'
 }), (req, res) => {
   const token = generateToken(req.user.id);
   res.cookie('token', token, { httpOnly: true, secure: true, sameSite: "none" });
-  res.redirect(`http://localhost:80`);
+  res.redirect(`http://localhost`);
 });
 
 router.post('/logout', (req, res) => {
@@ -201,6 +201,6 @@ router.get('/user/games', authenticateJWT, (req, res) => {
   } catch (error) {
     res.status(500).json({ message: 'Server error', error });
   }
-})
+});
 
 export default router;

@@ -9,7 +9,6 @@ import { createClient } from "redis";
 import config from './config.js';
 import sql from 'mssql';
 import authRoutes from './routes/auth.js';
-
 import { saveGameResult as saveAzureGameResult } from "./models/games.js"; // Assume you have a similar Azure implementation
 
 const secretKeyJWT = config.secretKeyJWT;
