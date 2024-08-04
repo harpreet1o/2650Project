@@ -1,4 +1,3 @@
-// src/components/GameDetail.js
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Chess } from 'chess.js';
@@ -57,8 +56,8 @@ const GameDetail = () => {
         <div className="container mx-auto mt-8">
             <h1 className="text-2xl font-bold mb-6">Game Detail</h1>
             <div className="bg-white shadow-lg rounded-lg p-6 mb-6">
-                <p><strong>White Player:</strong> {game.white_player}</p>
-                <p><strong>Black Player:</strong> {game.black_player}</p>
+                <p><strong>White Player:</strong> {game.white_username}</p>
+                <p><strong>Black Player:</strong> {game.black_username}</p>
                 <p><strong>Winner:</strong> {game.winner}</p>
                 <p><strong>Loser:</strong> {game.loser}</p>
                 {game.timestamp && <p><strong>Timestamp:</strong> {new Date(game.timestamp).toLocaleString()}</p>}
