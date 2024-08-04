@@ -8,6 +8,7 @@ To run the app locally use following commands:
 
    
 Whats is not working: 
+
 We need to purchase domain  name for google authenication ,so google authentication is not avaiable for pulic hosting.However, it is working fine locally.
 
 Public URL
