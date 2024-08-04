@@ -301,7 +301,13 @@ io.on("connection", (socket) => {
       const result = game.move(move);
 
       if (result) {
-        // Update timer
+        // history
+        if (!room.history) {
+          room.history = [];
+        }
+        room.history.push(game.history({verbose: true})[0]);
+  
+        // Update timerd
         const timer = gameTimers[uniqueRoomIndex];
         if (timer) {
           timer.currentPlayer = timer.currentPlayer === "w" ? "b" : "w";
@@ -344,7 +350,8 @@ io.on("connection", (socket) => {
         if (gameOver) {
           io.to(uniqueRoomIndex).emit("gameOver", gameOverMessage);
           // Save game result and remove the room from Redis
-          const gameState = JSON.stringify(game.history({ verbose: true }));
+          const gameState = JSON.stringify(room.history);
+          console.log(gameState)
           saveGameResult(room.white, room.black, winner, loser, gameState, async (err) => {
             if (!err) {
               await redisClient.del(userRoomKey);
