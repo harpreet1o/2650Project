@@ -1,31 +1,34 @@
 # Project: ChessGame 
 ## Step to run the app locally use following commands:
 
-- Run with Docker Compose
+- Run the Docker Compose
   
- Get the env variable in backend folder
+    Get the env variable in backend folder(Sent to you by mail)
   
- variable examples
+    Here are somevariable examples
   
- PORT=3000
+    ```console
+    PORT=3000
   
- GOOGLE_CLIENT_ID= your_id.com
+    GOOGLE_CLIENT_ID= your_id.com
 
- GOOGLE_CLIENT_SECRET= your_secret_key
+    GOOGLE_CLIENT_SECRET= your_secret_key
 
- SECRET_KEY_JWT= your_key
+    SECRET_KEY_JWT= your_key
 
- CORS_ORIGIN=http://localhost
+    CORS_ORIGIN=http://localhost
 
- DATABASE_USER= your_database_user_name
+    DATABASE_USER= your_database_user_name
 
- DATABASE_PASSWORD= your_password
+    DATABASE_PASSWORD= your_password
 
- DATABASE_NAME= database_name
+    DATABASE_NAME= database_name
 
- DATABASE_SERVER= project2650.database.windows.net
+    DATABASE_SERVER= project2650.database.windows.net
 
- DATABASE_TRUST_SERVER_CERTIFICATE=no
+     DATABASE_TRUST_SERVER_CERTIFICATE=no
+
+ ```
 
   ```console
   cd 2650Project
