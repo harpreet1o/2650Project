@@ -151,6 +151,11 @@ export default function ChessBoard() {
     return availableMoves.includes(`${String.fromCharCode(97 + colIndex)}${8 - rowIndex}`);
   };
 
+  const handleResign = () => {
+    socket.emit('resign');
+  };
+
+
   const formatTime = (seconds) => {
     const minutes = Math.floor(seconds / 60);
     const sec = seconds % 60;
@@ -208,7 +213,8 @@ export default function ChessBoard() {
           ))
         )}
       </div>
-      {/* <p>{playerRole === 'w' ? (players.white != null ? players.white : "not connected yet") : (players.black != null ? players.black : "not connected yet")}</p> */}
+      
+      <button onClick={handleResign} className={styles.resignButton}>Resign</button>
     </div>
   );
 }

@@ -360,6 +360,30 @@ io.on("connection", (socket) => {
     }
   });
 
+   // Handle resign event
+   socket.on('resign', async () => {
+    const userId = socket.decoded.id;
+    const userRoomKey = `userRoom:${userId}`;
+    const userRoom = JSON.parse(await redisClient.get(userRoomKey));
+
+    if (!userRoom) {
+      console.log(`User room not found for user: ${userId}`);
+      return;
+    }
+
+    const uniqueRoomIndex = `${userRoom.roomIndex}-${userRoom.time}`;
+    const lobby = lobbies[userRoom.time];
+    const room = lobby.find(room => room.roomIndex === userRoom.roomIndex);
+
+    if (room) {
+      const winnerColor = userRoom.role === "w" ? "b" : "w";
+      const reason = `Player ${userRoom.role === "w" ? "White" : "Black"} resigned`;
+      endGame(uniqueRoomIndex, winnerColor, reason);
+    } else {
+      console.error(`Room not found in resign: ${uniqueRoomIndex}`);
+    }
+  });
+
   // Handle disconnection
   socket.on("disconnect", async () => {
     const userId = socket.decoded.id;
