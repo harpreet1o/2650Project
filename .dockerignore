@@ -1,9 +1,2 @@
 node_modules
-dist
-.git
-.vscode
-Dockerfile
-docker-compose.yml
-.env
 npm-debug.log
-yarn-error.log

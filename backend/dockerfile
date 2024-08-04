@@ -1,6 +1,9 @@
 # Use an official Node.js runtime as a parent image
 FROM node:18
 
+# Install netcat-openbsd for wait-for-it script
+RUN apt-get update && apt-get install -y netcat-openbsd
+
 # Set the working directory
 WORKDIR /app
 
@@ -9,6 +12,13 @@ COPY package*.json ./
 
 # Install dependencies
 RUN npm install
+
+# Rebuild native modules
+RUN npm rebuild bcrypt --build-from-source
+
+# Copy the wait-for-redis script and make it executable
+COPY wait-for-redis.sh /usr/local/bin/wait-for-redis.sh
+RUN chmod +x /usr/local/bin/wait-for-redis.sh
 
 # Copy the rest of the application code
 COPY . .
@@ -20,4 +30,4 @@ EXPOSE 3000
 ENV NODE_ENV=production
 
 # Run the app
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "wait-for-redis.sh redis -- npm start"]
