@@ -59,7 +59,7 @@ We need to purchase domain  name for google authenication ,so google authenticat
 
 ## Public URL
 
-http://3.12.166.13/
+http://chess2650.com
 
 ## Complete Project Screenshot
 
