@@ -1,61 +1,65 @@
-import sqlite3 from 'sqlite3';
+import sql from 'mssql';
+import config from '../config.js';
 
-// Initialize SQLite database
-const db = new sqlite3.Database('./database.sqlite', (err) => {
-  if (err) {
-    console.error('Error opening database:', err.message);
-  } else {
-    console.log('Connected to SQLite database.');
-    db.run(`CREATE TABLE IF NOT EXISTS game_history (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      white_player TEXT,
-      black_player TEXT,
-      winner TEXT,
-      loser TEXT,
-      game_state TEXT
-    )`);
-  }
+const dbConfig = {
+  user: config.databaseUser,
+  password: config.databasePassword,
+  server: config.databaseServer,
+  database: config.databaseName,
+  options: {
+    encrypt: true, // for Azure SQL Database
+    trustServerCertificate: config.databaseTrustServerCertificate === 'yes',
+  },
+  connectionTimeout: parseInt(config.databaseConnectionTimeout, 10)
+};
+
+// Initialize Azure SQL Database connection
+const poolPromise = sql.connect(dbConfig).then(pool => {
+  console.log('Connected to Azure SQL Database');
+  return pool;
+}).catch(err => {
+  console.error('Database connection failed: ', err);
 });
 
 // Function to save game result
-const saveGameResult = (whitePlayer, blackPlayer, winner, loser, gameState, cb) => {
-  db.run(
-    'INSERT INTO game_history (white_player, black_player, winner, loser, game_state) VALUES (?, ?, ?, ?, ?)',
-    [whitePlayer, blackPlayer, winner, loser, gameState],
-    (err) => {
-      if (err) {
-        console.error('Error saving game result:', err.message);
-        cb(err);
-      } else {
-        console.log('Game result saved.');
-        cb(null);
-      }
-    }
-  );
+const saveGameResult = async (whitePlayer, blackPlayer, winner, loser, gameState, cb) => {
+  try {
+    const pool = await poolPromise;
+    await pool.request()
+      .input('whitePlayer', sql.VarChar, whitePlayer)
+      .input('blackPlayer', sql.VarChar, blackPlayer)
+      .input('winner', sql.VarChar, winner)
+      .input('loser', sql.VarChar, loser)
+      .input('gameState', sql.VarChar, gameState)
+      .query('INSERT INTO game_history (white_player, black_player, winner, loser, game_state) VALUES (@whitePlayer, @blackPlayer, @winner, @loser, @gameState)');
+    cb(null);
+  } catch (err) {
+    cb(err);
+  }
 };
 
 // Function to get all game histories
-const getAllGameHistories = (cb) => {
-  db.all('SELECT * FROM game_history', [], (err, rows) => {
-    if (err) {
-      console.error('Error fetching game histories:', err.message);
-      cb(err, null);
-    } else {
-      cb(null, rows);
-    }
-  });
+const getAllGameHistories = async (cb) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query('SELECT * FROM game_history');
+    cb(null, result.recordset);
+  } catch (err) {
+    cb(err, null);
+  }
 };
 
 // Function to get a game history by ID
-const getGameHistoryById = (id, cb) => {
-  db.get('SELECT * FROM game_history WHERE id = ?', [id], (err, row) => {
-    if (err) {
-      console.error('Error fetching game history:', err.message);
-      cb(err, null);
-    } else {
-      cb(null, row);
-    }
-  });
+const getGameHistoryById = async (id, cb) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .input('id', sql.Int, id)
+      .query('SELECT * FROM game_history WHERE id = @id');
+    cb(null, result.recordset[0]);
+  } catch (err) {
+    cb(err, null);
+  }
 };
 
-export { db, saveGameResult, getAllGameHistories, getGameHistoryById };
+export { saveGameResult, getAllGameHistories, getGameHistoryById };

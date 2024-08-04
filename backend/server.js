@@ -6,11 +6,10 @@ import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
 import { Chess } from "chess.js";
 import { createClient } from "redis";
-import sql from 'mssql';
 import config from './config.js';
-import sqlite3 from 'sqlite3';
+import sql from 'mssql';
 import authRoutes from './routes/auth.js';
-import { saveGameResult } from "./models/games.js";
+import { saveGameResult as saveAzureGameResult } from "./models/games.js"; // Assume you have a similar Azure implementation
 
 const secretKeyJWT = config.secretKeyJWT;
 const port = config.port;
@@ -19,13 +18,17 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: config.corsOrigin,
     methods: ["GET", "POST"],
     credentials: true,
   },
 });
 
-const redisClient = createClient();
+const redisClient = createClient(
+  {
+    url: 'redis://redis:6379'
+    }
+);
 
 redisClient.on("error", (error) => console.error(`Error: ${error}`));
 
@@ -44,9 +47,30 @@ const clearAllRedisKeys = async () => {
   console.log('Redis client connected successfully.');
 })();
 
+const dbConfig = {
+  user: config.databaseUser,
+  password: config.databasePassword,
+  server: config.databaseServer,
+  database: config.databaseName,
+  options: {
+    encrypt: true, // for Azure SQL Database
+    trustServerCertificate: config.databaseTrustServerCertificate === 'yes',
+  },
+  connectionTimeout: parseInt(config.databaseConnectionTimeout, 10)
+};
+
+// Connect to the database
+sql.connect(dbConfig).then(pool => {
+  if (pool.connected) {
+    console.log('Connected to Azure SQL Database');
+  }
+}).catch(err => {
+  console.error('Database connection failed: ', err);
+});
+
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: config.corsOrigin,
     methods: ["GET", "POST"],
     credentials: true,
   })
@@ -54,6 +78,11 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 app.use('/', authRoutes);
+
+app.get("/id", (req, res) => {
+  console.log("hi from server side");
+  res.send("Hello from server side");
+});
 
 const gameTimers = {};
 const lobbies = {
@@ -119,9 +148,9 @@ const endGame = async (uniqueRoomIndex, winnerColor, reason) => {
 
     io.to(uniqueRoomIndex).emit("gameOver", reason);
     const gameState = JSON.stringify(new Chess(room.game).history({ verbose: true }));
-    
-    // Save game result and remove the room from Redis
-    saveGameResult(room.white, room.black, winner, loser, gameState, async (err) => {
+
+    // Save game result in Azure SQL Database
+    saveAzureGameResult(room.white, room.black, winner, loser, gameState, async (err) => {
       if (!err) {
         await redisClient.del(`userRoom:${room.white}`);
         await redisClient.del(`userRoom:${room.black}`);
@@ -137,6 +166,7 @@ const endGame = async (uniqueRoomIndex, winnerColor, reason) => {
     console.error(`Room not found in endGame: ${uniqueRoomIndex}`);
   }
 };
+
 const assignUserToRoom = async (socket, userId, selectedTime) => {
   const userRoomKey = `userRoom:${userId}`;
   const roomsKey = "rooms";
@@ -301,7 +331,7 @@ io.on("connection", (socket) => {
           io.to(uniqueRoomIndex).emit("gameOver", gameOverMessage);
           // Save game result and remove the room from Redis
           const gameState = JSON.stringify(game.history({ verbose: true }));
-          saveGameResult(room.white, room.black, winner, loser, gameState, async (err) => {
+          saveAzureGameResult(room.white, room.black, winner, loser, gameState, async (err) => {
             if (!err) {
               await redisClient.del(userRoomKey);
             }
