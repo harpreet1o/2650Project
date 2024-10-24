@@ -110,3 +110,27 @@
   font-size: 1em;
   margin-bottom: 5px;
 }
+
+.resignButton {
+  background-color: #ff4d4d; /* Red background color */
+  color: white; /* White text color */
+  border: none; /* No border */
+  padding: 10px 20px; /* Padding for the button */
+  text-align: center; /* Center the text */
+  text-decoration: none; /* Remove underline */
+  display: inline-block; /* Display inline-block */
+  font-size: 16px; /* Font size */
+  margin: 10px 2px; /* Margin around the button */
+  cursor: pointer; /* Cursor changes to pointer on hover */
+  border-radius: 5px; /* Rounded corners */
+  transition: background-color 0.3s; /* Smooth transition for background color */
+}
+
+.resignButton:hover {
+  background-color: #ff3333; /* Darker red on hover */
+}
+
+.resignButton:disabled {
+  background-color: #cccccc; /* Gray background when disabled */
+  cursor: not-allowed; /* Not-allowed cursor */
+}

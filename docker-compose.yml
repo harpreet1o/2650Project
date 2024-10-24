@@ -21,7 +21,7 @@ services:
 
   frontend:
     build:
-      context: ./frontend # Assuming your Vite React app is in ./frontend
+      context: ./frontend
     ports:
       - "80:80"
     depends_on:
