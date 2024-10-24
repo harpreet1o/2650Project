@@ -62,18 +62,25 @@ const getGameHistoryById = async (id, cb) => {
   }
 };
 
-
 const getGamesByUserId = async (userId, cb) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request()
       .input('userId', sql.VarChar, userId)
-      .query('SELECT * FROM game_history WHERE white_player = @userId OR black_player = @userId');
+      .query(`
+        SELECT gh.*, wu.name as white_username, bu.name as black_username
+        FROM game_history gh
+        LEFT JOIN [user] wu ON gh.white_player = wu.id
+        LEFT JOIN [user] bu ON gh.black_player = bu.id
+        WHERE gh.white_player = @userId OR gh.black_player = @userId
+      `);
     cb(null, result.recordset);
   } catch (err) {
     console.error('Error fetching games for user:', err.message);
     cb(err, null);
   }
 };
+
+
 
 export { saveGameResult, getAllGameHistories, getGameHistoryById, getGamesByUserId };
