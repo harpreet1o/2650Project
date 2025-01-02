@@ -2,3 +2,4 @@ node_modules
 .git
 .env
 database.sqlite
+dump.rdb

@@ -1,8 +1,10 @@
 import React, { useState, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { UserContext } from '../context/UserContext';
 
 const Login = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const { setUser } = useContext(UserContext);
   const [error, setError] = useState('');
@@ -17,7 +19,8 @@ const Login = () => {
     try {
       const res = await axios.post('http://localhost:3000/login', formData, { withCredentials: true });
       setUser({ username: res.data.user.name }); // Set only necessary properties
-      window.location.href = 'http://localhost:80/';
+      // window.location.href = 'http://localhost:80/';
+      navigate('/');
     } catch (err) {
       if (err.response && err.response.data) {
         setError(err.response.data.message);
