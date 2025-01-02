@@ -152,12 +152,12 @@ router.post('/login', (req, res) => {
 //   res.redirect(`http://localhost`);
 // });
 
-// router.post('/logout', (req, res) => {
+router.post('/logout', (req, res) => {
 
-//   res.clearCookie('token');
-//   res.json({message:"removed succesfully"});
+  res.clearCookie('token');
+  res.json({message:"removed succesfully"});
 
-// });
+});
 
 // Route to get current user
 router.get('/current_user', authenticateJWT, (req, res) => {
