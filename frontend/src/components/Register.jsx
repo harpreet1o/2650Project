@@ -33,7 +33,7 @@ const Register = () => {
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-100">
             <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
-                <h1 className="text-2xl font-bold mb-6 text-center">Register</h1>
+                <h1 className="text-teal-700 text-2xl font-bold mb-6 text-center">Register</h1>
                 {message && <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
                     <span className="block sm:inline">{message}</span>
                 </div>}
@@ -76,11 +76,11 @@ const Register = () => {
                     </div>
                     <button
                         type="submit"
-                        className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                         Register
                     </button>
-                    <p>Already registered? <Link className='link' to="/login">Login</Link></p>
+                    <p className='my-4 text-teal-700'>Already registered? <Link className='link' to="/login">Login</Link></p>
                 </form>
             </div>
         </div>
