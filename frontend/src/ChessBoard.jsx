@@ -3,7 +3,7 @@ import { io } from "socket.io-client";
 import { useState, useMemo, useEffect, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { UserContext } from './context/UserContext';
-import styles from './ChessBoard.module.css';
+import { FaUser } from 'react-icons/fa';
 
 
 // Import piece images
@@ -55,8 +55,6 @@ export default function ChessBoard() {
       console.log("connected", socket.id);
     });
 
-
-
     socket.on('roleAssigned', ({ role, userName, socketId }) => {
       console.log('Role assigned:', role);
       setPlayerRole(role);
@@ -92,7 +90,6 @@ export default function ChessBoard() {
       socket.off("timerUpdate");
     };
   }, [socket, chess, navigate, user]);
-
 
   const getPieceImage = (piece) => {
     const pieceImages = {
@@ -155,7 +152,6 @@ export default function ChessBoard() {
     socket.emit('resign');
   };
 
-
   const formatTime = (seconds) => {
     const minutes = Math.floor(seconds / 60);
     const sec = seconds % 60;
@@ -163,58 +159,65 @@ export default function ChessBoard() {
   };
 
   return (
-    <div className={styles.container}>
-      {gameOverMessage && <div className={styles.gameOverMessage}>{gameOverMessage}</div>}
-      <div className="timers">
-        <p>White: {formatTime(whiteTime)}</p>
-        <p>Black: {formatTime(blackTime)}</p>
-      </div>
-      <div className={styles.info}>
-        <div className={styles.playerInfo}>
-          <p>White:</p>
-          <p className={styles.playerName}>
-            {players.white ? players.white.userName : "Not connected yet"}
-          </p>
+    <div className="p-4 bg-gray-100 text-gray-800 min-h-screen flex flex-col justify-center items-center">
+      {/* display game over */}
+      {gameOverMessage && (
+        <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 flex justify-center items-center">
+          <div className="bg-white p-8 rounded-xl shadow-lg text-center max-w-md w-full">
+            <p className="text-2xl font-bold text-gray-800 mb-6">{gameOverMessage}</p>
+            <button
+              onClick={() => navigate('/')}
+              className="bg-teal-600 text-white py-2 px-6 rounded-lg hover:bg-teal-700 transition duration-300"
+            >
+              Go Home
+            </button>
+          </div>
         </div>
-        <div className={styles.playerInfo}>
-          <p>Black:</p>
-          <p className={styles.playerName}>
-            {players.black ? players.black.userName : "Not connected yet"}
-          </p>
+      )}
+
+      {/* // display game stat */}
+      <div className="mb-4 flex justify-between w-full max-w-lg">
+        <div className="text-lg font-extrabold">White: <span className='text-teal-600'>{formatTime(whiteTime)}</span></div>
+        <div className="text-lg font-extrabold">Black: <span className='text-teal-600'>{formatTime(blackTime)}</span></div>
+      </div>
+      <div className="flex justify-between w-full max-w-lg mb-4">
+        <div className="flex items-center space-x-2">
+          <FaUser size={24} className="text-gray-800" />
+          <span className="font-semibold">{players.white ? players.white.userName : "Not connected yet"}</span>
+        </div>
+        <div className="flex items-center space-x-2 text-right">
+          <FaUser size={24} className="text-gray-800" />
+          <span className="font-semibold">{players.black ? players.black.userName : "Not connected yet"}</span>
         </div>
       </div>
-      <div className={`${styles.board} ${playerRole === "b" ? styles.rotate180 : ""}`}>
+
+      {/* // display chess board */}
+      <div className={`bg-gray-800 shadow-lg grid grid-cols-8 gap-0.5 ${playerRole === "b" ? "transform rotate-180" : ""}`}>
         {board.map((row, rowIndex) =>
           row.map((square, squareIndex) => (
             <div
               key={rowIndex * 8 + squareIndex}
               onClick={() => handleSquareClick(rowIndex, squareIndex, square)}
-              className={`${styles.square} ${(rowIndex + squareIndex) % 2 === 0 ? styles.light : styles.dark} 
-                          ${playerRole === "b" ? styles.rotate180 : ""} 
-                          ${selectedSquare && selectedSquare.row === rowIndex && selectedSquare.col === squareIndex ? styles.selected : ""} 
-                          ${isAvailableMove(rowIndex, squareIndex) ? styles.availableMove : ""}`}
+              className={`w-16 h-16 flex justify-center items-center border-2 ${(rowIndex + squareIndex) % 2 === 0 ? 'bg-gray-200' : 'bg-teal-600'
+                } 
+                ${playerRole === "b" ? "transform rotate-180" : ""}
+                ${selectedSquare && selectedSquare.row === rowIndex && selectedSquare.col === squareIndex ? 'bg-teal-500' : ''} 
+                ${isAvailableMove(rowIndex, squareIndex) ? 'bg-cyan-500' : ''}`}
             >
-              {
-                square && square.type && (
-                  (() => {
-                    console.log(square); // Log the square object for debugging
-                    return (
-                      <img
-                        src={getPieceImage(square)}
-
-                        className={styles.piece}
-                      />
-                    );
-                  })()
-                )
-              }
-
+              {square && square.type && (
+                <img src={getPieceImage(square)} alt={square.type} className="w-12 h-12" />
+              )}
             </div>
           ))
         )}
       </div>
-      
-      <button onClick={handleResign} className={styles.resignButton}>Resign</button>
+
+      <button
+        onClick={handleResign}
+        className="mt-6 bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-700"
+      >
+        Resign
+      </button>
     </div>
   );
 }

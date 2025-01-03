@@ -7,7 +7,7 @@ import cookieParser from "cookie-parser";
 import { Chess } from "chess.js";
 import { createClient } from "redis";
 import config from './config.js';
-import sql from 'mssql';
+import mysql from 'mysql2/promise';
 import authRoutes from './routes/auth.js';
 import { saveGameResult as saveAzureGameResult } from "./models/games.js"; // Assume you have a similar Azure implementation
 
@@ -26,7 +26,7 @@ const io = new Server(server, {
 
 const redisClient = createClient(
   {
-    url: 'redis://redis:6379'
+    url: 'redis://localhost:6379'
     }
 );
 
@@ -48,25 +48,24 @@ const clearAllRedisKeys = async () => {
 })();
 
 const dbConfig = {
+  host: config.databaseHost,
   user: config.databaseUser,
   password: config.databasePassword,
-  server: config.databaseServer,
   database: config.databaseName,
-  options: {
-    encrypt: true, // for Azure SQL Database
-    trustServerCertificate: config.databaseTrustServerCertificate === 'yes',
-  },
-  connectionTimeout: parseInt(config.databaseConnectionTimeout, 10)
+  connectionLimit: 10, // Set the connection pool limit
+  charset: 'utf8mb4',  // Ensure compatibility with UTF-8 characters
 };
-
 // Connect to the database
-sql.connect(dbConfig).then(pool => {
-  if (pool.connected) {
-    console.log('Connected to Azure SQL Database');
-  }
-}).catch(err => {
-  console.error('Database connection failed: ', err);
-});
+const pool = mysql.createPool(dbConfig);
+
+pool.getConnection()
+  .then((connection) => {
+    console.log('Connected to MySQL Database');
+    connection.release();
+  })
+  .catch((err) => {
+    console.error('Database connection failed: ', err);
+  });
 
 app.use(
   cors({

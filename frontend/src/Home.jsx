@@ -3,6 +3,7 @@ import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserContext } from './context/UserContext';
 import Games from './components/Games';
+import { FaChessKing, FaClock, FaGamepad } from "react-icons/fa";
 
 const Home = () => {
   const navigate = useNavigate();
@@ -19,27 +20,63 @@ const Home = () => {
   };
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4 text-center">Welcome to the Chess Game</h1>
-      {message && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 text-center" role="alert">
-          <span className="block sm:inline">{message}</span>
+    <div className="min-h-screen bg-gray-100 text-gray-800">
+      <div className="container mx-auto px-8 py-10">
+        {/* Header Section */}
+        <header className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-teal-700 mb-4 flex items-center justify-center space-x-3">
+            <FaChessKing className="text-teal-600" size={40} />
+            <span>Welcome to the Chess Game</span>
+          </h1>
+          <p className="text-lg text-gray-600">
+            Play chess in a random match. Select your settings and start playing!
+          </p>
+        </header>
+
+        {/* Alert Message */}
+        {message && (
+          <div
+            className="max-w-lg mx-auto bg-teal-100 border border-teal-500 text-teal-800 text-lg px-4 py-3 rounded relative mb-8 flex items-center space-x-2"
+            role="alert"
+          >
+            <FaGamepad className="text-teal-700" size={24} />
+            <span>{message}</span>
+          </div>
+        )}
+
+        {/* Content Section */}
+        {/* Game Time Selection */}
+        <div className="bg-white w-[400px] m-auto shadow-lg p-6 rounded-lg">
+          <h2 className="text-2xl font-semibold text-teal-700 flex items-center mb-4">
+            <FaClock className="mr-2 text-teal-600" size={28} />
+            Game Time
+          </h2>
+          <label className="block mb-6">
+            <span className="block text-lg font-medium text-gray-700 mb-2">
+              Choose your time:
+            </span>
+            <select
+              value={selectedTime}
+              onChange={(e) => setSelectedTime(e.target.value)}
+              className="border border-teal-400 text-gray-800 px-4 py-2 rounded-lg w-full focus:ring-2 focus:ring-teal-700 focus:outline-none"
+            >
+              <option value="1">1 Minute</option>
+              <option value="5">5 Minutes</option>
+              <option value="10">10 Minutes</option>
+            </select>
+          </label>
+          <button
+            onClick={handleCreateGame}
+            className="w-full bg-teal-600 text-white text-lg font-medium py-3 rounded-lg hover:bg-teal-700 transition"
+          >
+            Play Game
+          </button>
         </div>
-      )}
-      <div className="flex flex-col items-center">
-        <label className="mb-4">
-          <span className="block text-lg font-semibold mb-2">Select Game Time:</span>
-          <select value={selectedTime} onChange={(e) => setSelectedTime(e.target.value)} className="border rounded px-2 py-1">
-            <option value="1">1 Minute</option>
-            <option value="5">5 Minutes</option>
-            <option value="10">10 Minutes</option>
-          </select>
-        </label>
-        <button onClick={handleCreateGame} className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
-          Create Game
-        </button>
+
+        {/* Additional Content (Icons & Info) */}
+
+        <Games />
       </div>
-      <Games />
     </div>
   );
 };
