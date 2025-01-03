@@ -19,8 +19,8 @@ const Login = () => {
     try {
       const res = await axios.post('http://localhost:3000/login', formData, { withCredentials: true });
       setUser({ username: res.data.user.name }); // Set only necessary properties
-      // window.location.href = 'http://localhost:80/';
-      navigate('/');
+      window.location.href = 'http://localhost:5173/';
+      // navigate('/');
     } catch (err) {
       if (err.response && err.response.data) {
         setError(err.response.data.message);
